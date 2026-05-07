@@ -1,0 +1,34 @@
+import Image from "next/image";
+import { notFound } from "next/navigation";
+import { MobileShell } from "@/components/layout/mobile-shell";
+import { ProductDetailActions } from "@/components/product/product-detail-actions";
+import { getDemoProductBySlug } from "@/lib/demo-data";
+import { formatPrice } from "@/lib/utils";
+
+type PageProps = {
+  params: Promise<{ slug: string }>;
+};
+
+export default async function ProductDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+  const product = getDemoProductBySlug(slug);
+  if (!product) notFound();
+
+  return (
+    <MobileShell>
+      <div className="relative aspect-square bg-zinc-100">
+        <Image src={product.images[0]} alt={product.name} fill sizes="430px" className="object-cover" priority />
+      </div>
+      <section className="px-5 py-6">
+        <p className="text-sm font-black uppercase text-zinc-500">{product.category}</p>
+        <h1 className="mt-2 text-4xl font-black">{product.name}</h1>
+        <div className="mt-4 flex items-end gap-3">
+          <p className="text-3xl font-black text-[#1768d8]">{formatPrice(product.price)}</p>
+          {product.originalPrice ? <p className="text-xl font-medium text-zinc-400 line-through">{formatPrice(product.originalPrice)}</p> : null}
+        </div>
+        <p className="mt-5 text-lg leading-relaxed text-zinc-600">{product.description}</p>
+        <ProductDetailActions product={product} />
+      </section>
+    </MobileShell>
+  );
+}
