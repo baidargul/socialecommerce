@@ -15,13 +15,17 @@ export async function POST(request: Request) {
     const existingUser = await prisma.user.findFirst({ where: { OR: [{ email }, { username }] } });
     if (existingUser) return apiError("USER_EXISTS", "Email or username is already registered.", startedAt, 409);
 
+    const userCount = await prisma.user.count();
+    const role = userCount === 0 ? "ADMIN" : "CUSTOMER";
+
     const user = await prisma.user.create({
       data: {
         name,
         username,
         email,
         password: await bcrypt.hash(password, 12),
-        avatarUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
+        avatarUrl: null,
+        role,
       },
       select: { id: true, name: true, username: true, email: true, avatarUrl: true, role: true },
     });
@@ -34,7 +38,7 @@ export async function POST(request: Request) {
     name,
     username,
     email,
-    avatarUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
+    avatarUrl: "",
     role: "CUSTOMER" as const,
   };
   await setSession(user);

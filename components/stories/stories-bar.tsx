@@ -47,7 +47,7 @@ export function StoriesBar({ stories }: { stories: Story[] }) {
 
       {activeStory ? (
         <div className="fixed inset-0 z-[60] mx-auto max-w-[430px] bg-black">
-          <Image src={activeStory.mediaUrl} alt={activeStory.creator.username} fill sizes="430px" className="object-cover" priority />
+          {activeStory.mediaUrl ? <Image src={activeStory.mediaUrl} alt={activeStory.creator.username} fill sizes="430px" className="object-cover" priority /> : null}
           <div className="absolute inset-x-3 top-5 flex gap-1">
             {stories.map((story, index) => {
               const isComplete = index < currentIndex;

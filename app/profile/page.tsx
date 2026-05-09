@@ -1,4 +1,5 @@
-import { Package, Settings, ShoppingBag, Heart } from "lucide-react";
+import Link from "next/link";
+import { LayoutDashboard, Package, Settings, ShoppingBag, Heart } from "lucide-react";
 import { AuthRequired } from "@/components/auth/auth-required";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { MobileShell } from "@/components/layout/mobile-shell";
@@ -9,6 +10,7 @@ import { demoPosts } from "@/lib/demo-data";
 
 export default async function ProfilePage() {
   const user = await getSessionUser();
+  const canAccessDashboard = user?.role === "ADMIN" || user?.role === "VENDOR";
 
   return (
     <MobileShell>
@@ -58,6 +60,15 @@ export default async function ProfilePage() {
         </div>
 
         <div className="mt-8 grid gap-3">
+          {canAccessDashboard ? (
+            <Link
+              href="/dashboard"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
+            >
+              <LayoutDashboard className="size-5" />
+              Dashboard
+            </Link>
+          ) : null}
           <Button className="w-full">Manage Account</Button>
           <LogoutButton />
         </div>

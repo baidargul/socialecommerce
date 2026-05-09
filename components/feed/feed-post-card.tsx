@@ -18,6 +18,7 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
   const openComments = useSheetStore((state) => state.openComments);
   const openCheckout = useSheetStore((state) => state.openCheckout);
   const openShare = useSheetStore((state) => state.openShare);
+  const media = post.media[0];
 
   return (
     <article className="border-b border-zinc-100 pb-10">
@@ -30,7 +31,7 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
       </header>
 
       <div className="relative aspect-square bg-zinc-100">
-        <Image src={post.media[0].url} alt={post.caption} fill sizes="430px" className="object-cover" />
+        {media ? <Image src={media.url} alt={post.caption} fill sizes="430px" className="object-cover" /> : null}
         {post.media.length > 1 ? (
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
             {post.media.map((media) => (

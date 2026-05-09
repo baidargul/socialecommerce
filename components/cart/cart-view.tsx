@@ -49,7 +49,7 @@ export function CartView() {
         {items.map((item) => (
           <article key={item.product.id} className="flex gap-4 rounded-lg border border-zinc-100 p-3">
             <div className="relative size-24 overflow-hidden rounded-lg bg-zinc-100">
-              <Image src={item.product.images[0]} alt={item.product.name} fill sizes="96px" className="object-cover" />
+              {item.product.images[0] ? <Image src={item.product.images[0]} alt={item.product.name} fill sizes="96px" className="object-cover" /> : null}
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-lg font-black">{item.product.name}</h2>

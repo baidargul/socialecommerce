@@ -2,7 +2,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type AvatarProps = {
-  src: string;
+  src?: string;
   alt: string;
   size?: "sm" | "md" | "lg";
   ring?: "active" | "viewed" | "none";
@@ -15,6 +15,8 @@ const sizes = {
 };
 
 export function Avatar({ src, alt, size = "md", ring = "none" }: AvatarProps) {
+  const initials = alt.slice(0, 2).toUpperCase();
+
   return (
     <span
       className={cn(
@@ -25,7 +27,11 @@ export function Avatar({ src, alt, size = "md", ring = "none" }: AvatarProps) {
       )}
     >
       <span className="relative block size-full overflow-hidden rounded-full border-2 border-white bg-zinc-100">
-        <Image src={src} alt={alt} fill sizes="96px" className="object-cover" />
+        {src ? (
+          <Image src={src} alt={alt} fill sizes="96px" className="object-cover" />
+        ) : (
+          <span className="grid size-full place-items-center text-xs font-black text-zinc-500">{initials}</span>
+        )}
       </span>
     </span>
   );

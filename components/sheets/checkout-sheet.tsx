@@ -16,13 +16,14 @@ export function CheckoutSheet({ open }: { open: boolean }) {
   const addProduct = useCartStore((state) => state.addProduct);
 
   if (!product) return null;
+  const image = product.images[0];
 
   return (
     <Sheet open={open} onClose={closeSheet} className="min-h-[58dvh]">
       <h2 className="mb-8 text-4xl font-black">Checkout</h2>
       <div className="flex gap-6">
         <div className="relative size-36 overflow-hidden rounded-xl bg-zinc-100">
-          <Image src={product.images[0]} alt={product.name} fill sizes="144px" className="object-cover" />
+          {image ? <Image src={image} alt={product.name} fill sizes="144px" className="object-cover" /> : null}
         </div>
         <div className="pt-1">
           <h3 className="text-2xl font-black">{product.name}</h3>

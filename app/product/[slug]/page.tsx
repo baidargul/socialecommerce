@@ -13,11 +13,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const product = getDemoProductBySlug(slug);
   if (!product) notFound();
+  const image = product.images[0];
 
   return (
     <MobileShell>
       <div className="relative aspect-square bg-zinc-100">
-        <Image src={product.images[0]} alt={product.name} fill sizes="430px" className="object-cover" priority />
+        {image ? <Image src={image} alt={product.name} fill sizes="430px" className="object-cover" priority /> : null}
       </div>
       <section className="px-5 py-6">
         <p className="text-sm font-black uppercase text-zinc-500">{product.category}</p>

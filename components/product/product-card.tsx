@@ -12,11 +12,12 @@ import { useCartStore } from "@/store/use-cart-store";
 export function ProductCard({ product }: { product: Product }) {
   const { requireAuth } = useAuthGuard();
   const addProduct = useCartStore((state) => state.addProduct);
+  const image = product.images[0];
 
   return (
     <article className="overflow-hidden rounded-lg border border-zinc-100 bg-white">
       <Link href={`/product/${product.slug}`} className="relative block aspect-square bg-zinc-100">
-        <Image src={product.images[0]} alt={product.name} fill sizes="180px" className="object-cover" />
+        {image ? <Image src={image} alt={product.name} fill sizes="180px" className="object-cover" /> : null}
         {product.discountPercent ? (
           <span className="absolute left-2 top-2 rounded-full bg-emerald-600 px-2 py-1 text-xs font-black text-white">
             {product.discountPercent}% OFF

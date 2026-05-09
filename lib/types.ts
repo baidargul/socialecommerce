@@ -5,7 +5,7 @@ export type DemoUser = {
   name: string;
   username: string;
   email?: string;
-  avatarUrl: string;
+  avatarUrl?: string;
   bio?: string;
   role: UserRole;
 };
@@ -46,7 +46,7 @@ export type FeedPost = {
 export type Story = {
   id: string;
   creator: DemoUser;
-  mediaUrl: string;
+  mediaUrl?: string;
   viewed: boolean;
   product?: Product;
 };
