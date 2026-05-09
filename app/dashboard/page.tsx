@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { BarChart3, Boxes, ClipboardList, Home, LayoutDashboard, Package, Settings, ShoppingBag, Users } from "lucide-react";
+import { BarChart3, Package, ShoppingBag, Users } from "lucide-react";
 import { getSessionUser } from "@/lib/auth/session";
 import { fetchBackend } from "@/lib/backend-api";
 import { formatPrice } from "@/lib/utils";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 type DashboardStats = {
   users: number;
@@ -35,61 +35,11 @@ export default async function DashboardPage() {
     { label: "Products", value: stats.products.toLocaleString(), icon: Package },
     { label: "Orders", value: stats.orders.toLocaleString(), icon: ShoppingBag },
   ];
-  const navItems = [
-    { label: "Overview", icon: LayoutDashboard, active: true },
-    { label: "Products", icon: Boxes },
-    { label: "Orders", icon: ClipboardList },
-    ...(isAdmin ? [{ label: "Users", icon: Users }] : []),
-    { label: "Settings", icon: Settings },
-  ];
 
   return (
-    <main className="min-h-dvh bg-[#f7f7f7] text-zinc-900">
-      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white">
-        <div className="flex h-14 items-center justify-between px-5">
-          <div className="flex items-center gap-3">
-            <div className="grid size-8 place-items-center rounded bg-gradient-to-tr from-[#feda75] via-[#d62976] to-[#4f5bd5] text-sm font-black text-white">SC</div>
-            <div>
-              <h1 className="text-base font-black">Dashboard</h1>
-              <p className="text-xs font-medium text-zinc-500">{user.role.toLowerCase()}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm font-bold text-zinc-600 sm:inline">@{user.username}</span>
-            <Link href="/profile" className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-sm font-bold text-zinc-800">
-              <Home className="size-4" />
-              Back to App
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="grid min-h-[calc(100dvh-56px)] grid-cols-[220px_1fr]">
-        <aside className="border-r border-zinc-200 bg-white px-3 py-4">
-          <nav className="grid gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.label}
-                  className={`flex h-10 items-center gap-3 rounded px-3 text-left text-sm font-bold ${
-                    item.active ? "bg-[#fff1f7] text-[#d62976]" : "text-zinc-600 hover:bg-zinc-50"
-                  }`}
-                >
-                  <Icon className="size-4" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <section className="px-6 py-5">
+    <DashboardShell user={user} active="overview" title="Overview" subtitle="Simple workspace for your commerce operations.">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-black">Overview</h2>
-              <p className="mt-1 text-sm font-medium text-zinc-500">Simple workspace for your commerce operations.</p>
-            </div>
+            <div />
             <div className="rounded border border-zinc-200 bg-white px-4 py-2 text-right">
               <p className="text-xs font-bold uppercase text-zinc-500">Revenue</p>
               <p className="text-xl font-black text-[#d62976]">{formatPrice(stats.revenue)}</p>
@@ -145,8 +95,6 @@ export default async function DashboardPage() {
               </dl>
             </aside>
           </div>
-        </section>
-      </div>
-    </main>
+    </DashboardShell>
   );
 }

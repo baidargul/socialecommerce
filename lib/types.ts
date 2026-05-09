@@ -18,6 +18,7 @@ export type Product = {
   description: string;
   shortDescription: string;
   images: string[];
+  media?: { url: string; type: "image" | "video"; fileName?: string; order: number; isPrimary: boolean }[];
   category: string;
   price: number;
   originalPrice?: number;
@@ -35,7 +36,7 @@ export type FeedPost = {
   creator: DemoUser;
   caption: string;
   hashtags: string[];
-  media: { url: string; type: "image"; width: number; height: number }[];
+  media: { url: string; type: "image" | "video"; width: number; height: number }[];
   product?: Product;
   likeCount: number;
   commentCount: number;
@@ -63,4 +64,14 @@ export type CommentItem = {
 export type CartLine = {
   product: Product;
   quantity: number;
+};
+
+export type CategoryItem = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string;
+  imageUrl?: string;
+  productCount: number;
+  createdAt: string;
 };

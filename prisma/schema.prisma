@@ -95,6 +95,14 @@ type PostMedia {
   order    Int
 }
 
+type ProductMedia {
+  url       String
+  type      String
+  fileName  String?
+  order     Int
+  isPrimary Boolean @default(false)
+}
+
 model Product {
   id               String        @id @default(auto()) @map("_id") @db.ObjectId
   vendorId         String        @db.ObjectId
@@ -103,6 +111,7 @@ model Product {
   description      String?
   shortDescription String?
   images           String[]
+  media            ProductMedia[]
   categoryId       String?       @db.ObjectId
   price            Float
   originalPrice    Float?
@@ -127,10 +136,13 @@ model Category {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   name      String
   slug      String    @unique
+  parentId  String?   @db.ObjectId
   imageUrl  String?
   products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([parentId])
 }
 
 model Comment {

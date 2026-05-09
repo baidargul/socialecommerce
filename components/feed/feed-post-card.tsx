@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Heart, MessageCircle, MoreHorizontal, Send, ShoppingBag } from "lucide-react";
 import type { FeedPost } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/utils";
@@ -9,6 +8,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Button } from "@/components/ui/button";
 import { useAuthGuard } from "@/components/auth/use-auth-guard";
 import { FeaturedProduct } from "@/components/feed/featured-product";
+import { ProductMediaCarousel } from "@/components/feed/product-media-carousel";
 import { useFeedStore } from "@/store/use-feed-store";
 import { useSheetStore } from "@/store/use-sheet-store";
 
@@ -18,7 +18,6 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
   const openComments = useSheetStore((state) => state.openComments);
   const openCheckout = useSheetStore((state) => state.openCheckout);
   const openShare = useSheetStore((state) => state.openShare);
-  const media = post.media[0];
 
   return (
     <article className="border-b border-zinc-100 pb-10">
@@ -30,23 +29,10 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
         <IconButton label="Post options" icon={<MoreHorizontal className="size-6" />} />
       </header>
 
-      <div className="relative aspect-square bg-zinc-100">
-        {media ? <Image src={media.url} alt={post.caption} fill sizes="430px" className="object-cover" /> : null}
-        {post.media.length > 1 ? (
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
-            {post.media.map((media) => (
-              <span key={media.url} className="size-2 rounded-full bg-white" />
-            ))}
-          </div>
-        ) : (
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5">
-            <span className="size-2 rounded-full bg-white" />
-            <span className="size-2 rounded-full bg-white/70" />
-          </div>
-        )}
+      <ProductMediaCarousel key={post.id} media={post.media} alt={post.caption}>
         {post.product ? (
           <Button
-            className="absolute bottom-4 right-4 min-h-9 rounded-lg bg-white px-3 text-sm text-zinc-950 shadow"
+            className="pointer-events-auto absolute bottom-4 right-4 min-h-9 rounded-lg bg-white px-3 text-sm text-zinc-950 shadow"
             icon={<ShoppingBag className="size-5" />}
             onClick={() => {
               if (!requireAuth()) return;
@@ -56,7 +42,7 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
             Buy Now
           </Button>
         ) : null}
-      </div>
+      </ProductMediaCarousel>
 
       <div className="px-5 pt-4">
         <div className="flex items-center gap-4">
@@ -79,9 +65,7 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
 
         <p className="mt-3 text-[17px] leading-snug">
           <span className="font-black">{post.creator.username}</span> {post.caption}{" "}
-          {post.hashtags.map((tag) => (
-            <span key={tag}>#{tag} </span>
-          ))}
+          {post.hashtags.map((tag) => (tag ? <span key={tag}>#{tag} </span> : null))}
         </p>
 
         {post.product ? <FeaturedProduct product={post.product} /> : null}

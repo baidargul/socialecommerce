@@ -33,3 +33,47 @@ export const orderSchema = z.object({
     postalCode: z.string().optional(),
   }),
 });
+
+export const productCreateSchema = z.object({
+  name: z.string().min(2).max(120),
+  slug: z
+    .string()
+    .min(2)
+    .max(140)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .optional()
+    .or(z.literal("")),
+  description: z.string().max(2000).optional(),
+  shortDescription: z.string().max(240).optional(),
+  images: z.array(z.string()).max(12).default([]),
+  primaryMediaIndex: z.coerce.number().int().min(0).max(11).default(0),
+  category: z.string().min(2).max(80).optional().or(z.literal("")),
+  price: z.coerce.number().positive(),
+  originalPrice: z.coerce.number().positive().optional().or(z.literal("")),
+  discountPercent: z.coerce.number().int().min(0).max(95).optional().or(z.literal("")),
+  stockQuantity: z.coerce.number().int().min(0).max(999999).default(0),
+  sku: z.string().max(80).optional(),
+  tags: z.array(z.string().min(1).max(40)).max(20).default([]),
+});
+
+export const productBatchSchema = z.object({
+  productIds: z.array(z.string().min(1)).min(1).max(100),
+  operation: z.enum(["delete", "quantity", "status", "category"]),
+  quantityMode: z.enum(["set", "increase", "decrease"]).optional(),
+  quantity: z.coerce.number().int().min(0).max(999999).optional(),
+  status: z.enum(["ACTIVE", "OUT_OF_STOCK"]).optional(),
+  category: z.string().min(2).max(80).optional(),
+});
+
+export const categoryCreateSchema = z.object({
+  name: z.string().min(2).max(80),
+  slug: z
+    .string()
+    .min(2)
+    .max(100)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .optional()
+    .or(z.literal("")),
+  parentId: z.string().min(1).optional().or(z.literal("")),
+  imageUrl: z.string().url().optional().or(z.literal("")),
+});
