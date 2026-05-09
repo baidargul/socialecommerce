@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, PackageCheck, Plus, Sparkles, Star, Video, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, PackageCheck, Plus, Sparkles, Star, Video, X } from "lucide-react";
 import { SearchableDropdown } from "@/components/ui/searchable-dropdown";
 import type { CategoryItem, Product } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
@@ -141,10 +142,14 @@ export function ProductCreateForm({
   categories,
   product,
   onCreated,
+  backHref,
+  backLabel = "Products",
 }: {
   categories: CategoryItem[];
   product?: Product;
   onCreated?: () => void;
+  backHref?: string;
+  backLabel?: string;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<ProductDraft>(() => getInitialDraft(product, categories));
@@ -322,6 +327,19 @@ export function ProductCreateForm({
 
   return (
     <form onSubmit={onSubmit} className="grid gap-5 xl:grid-cols-[1fr_320px]">
+      {backHref ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 xl:col-span-2">
+          <Link href={backHref} className="inline-flex min-h-10 items-center gap-2 rounded border border-zinc-200 bg-white px-4 text-sm font-black text-zinc-800">
+            <ArrowLeft className="size-4" />
+            {backLabel}
+          </Link>
+          <button disabled={loading} className="inline-flex min-h-10 items-center justify-center gap-2 rounded bg-[#d62976] px-4 text-sm font-black text-white disabled:opacity-60">
+            <Plus className="size-4" />
+            {loading ? (product ? "Updating..." : "Creating...") : product ? "Update Product" : "Create Product"}
+          </button>
+        </div>
+      ) : null}
+
       <div className="grid gap-5">
         <section className="rounded border border-zinc-200">
           <div className="border-b border-zinc-200 px-4 py-3">
@@ -534,10 +552,12 @@ export function ProductCreateForm({
           </div>
         </section>
 
-        <button disabled={loading} className="inline-flex min-h-11 items-center justify-center gap-2 rounded bg-[#d62976] px-4 text-sm font-black text-white disabled:opacity-60">
-          <Plus className="size-4" />
-          {loading ? (product ? "Updating..." : "Creating...") : product ? "Update Product" : "Create Product"}
-        </button>
+        {!backHref ? (
+          <button disabled={loading} className="inline-flex min-h-11 items-center justify-center gap-2 rounded bg-[#d62976] px-4 text-sm font-black text-white disabled:opacity-60">
+            <Plus className="size-4" />
+            {loading ? (product ? "Updating..." : "Creating...") : product ? "Update Product" : "Create Product"}
+          </button>
+        ) : null}
       </aside>
     </form>
   );

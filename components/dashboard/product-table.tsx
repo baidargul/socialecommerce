@@ -1,9 +1,9 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckSquare, Layers3, PackageCheck, Trash2, X } from "lucide-react";
-import { ProductCreateDialog } from "@/components/dashboard/product-create-dialog";
 import { ProductQuickEditRow } from "@/components/dashboard/product-quick-edit-row";
 import { ProductRowActions } from "@/components/dashboard/product-row-actions";
 import { SearchableDropdown } from "@/components/ui/searchable-dropdown";
@@ -283,11 +283,9 @@ export function ProductTable({ products, categories }: ProductTableProps) {
                     </td>
                     <td className="px-4 py-3">
                       <div>
-                        <ProductCreateDialog
-                          categories={categories}
-                          product={product}
-                          trigger={<span className="cursor-pointer font-black text-zinc-950 hover:text-[#d62976] hover:underline">{product.name}</span>}
-                        />
+                        <Link href={`/dashboard/products/${product.id}/edit`} className="font-black text-zinc-950 hover:text-[#d62976] hover:underline">
+                          {product.name}
+                        </Link>
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-zinc-500">
                           <span>{product.sku || product.slug}</span>
                           <button

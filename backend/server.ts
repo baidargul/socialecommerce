@@ -945,6 +945,28 @@ app.get("/api/v1/dashboard/products", async (req, res) => {
   return success(res, { items: products.map(mapProduct), nextCursor: null }, startedAt);
 });
 
+app.get("/api/v1/dashboard/products/:id", async (req, res) => {
+  const startedAt = Date.now();
+  if (!canUseDatabase()) {
+    return failure(res, "DATABASE_UNAVAILABLE", "Database is required to edit products.", startedAt, 503);
+  }
+
+  const productId = getRouteParam(req.params.id);
+  const access = await requireProductAccess(productId, req, res, startedAt);
+  if (!access) return;
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: {
+      category: true,
+      vendor: true,
+    },
+  });
+  if (!product) return failure(res, "NOT_FOUND", "Product was not found.", startedAt, 404);
+
+  return success(res, mapProduct(product), startedAt);
+});
+
 app.get("/api/v1/dashboard/categories", async (req, res) => {
   const startedAt = Date.now();
   const user = await requireProductManager(req, res, startedAt);
