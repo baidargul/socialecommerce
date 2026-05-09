@@ -2,8 +2,11 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { ProductDetailActions } from "@/components/product/product-detail-actions";
-import { getDemoProductBySlug } from "@/lib/demo-data";
+import { fetchBackend } from "@/lib/backend-api";
+import type { Product } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -11,7 +14,7 @@ type PageProps = {
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const product = getDemoProductBySlug(slug);
+  const product = await fetchBackend<Product>(`/api/v1/products/slug/${slug}`);
   if (!product) notFound();
   const image = product.images[0];
 

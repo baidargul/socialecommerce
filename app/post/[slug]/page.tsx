@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { FeedPostCard } from "@/components/feed/feed-post-card";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { SheetHost } from "@/components/sheets/sheet-host";
-import { getDemoPostBySlug } from "@/lib/demo-data";
+import { fetchBackend } from "@/lib/backend-api";
+import type { FeedPost } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -10,7 +13,7 @@ type PageProps = {
 
 export default async function PostDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const post = getDemoPostBySlug(slug);
+  const post = await fetchBackend<FeedPost>(`/api/v1/posts/slug/${slug}`);
   if (!post) notFound();
 
   return (

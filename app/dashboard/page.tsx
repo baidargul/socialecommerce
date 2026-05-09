@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { BarChart3, Boxes, ClipboardList, Home, LayoutDashboard, Package, Settings, ShoppingBag, Users } from "lucide-react";
 import { getSessionUser } from "@/lib/auth/session";
-import { canUseDatabase, prisma } from "@/lib/prisma";
+import { fetchBackend } from "@/lib/backend-api";
 import { formatPrice } from "@/lib/utils";
 
 type DashboardStats = {
@@ -13,30 +14,7 @@ type DashboardStats = {
   revenue: number;
 };
 
-async function getDashboardStats(userId: string, isAdmin: boolean): Promise<DashboardStats> {
-  if (!canUseDatabase()) {
-    return { users: 0, posts: 0, products: 0, orders: 0, revenue: 0 };
-  }
-
-  const [users, posts, products, orders, revenue] = await Promise.all([
-    isAdmin ? prisma.user.count() : Promise.resolve(0),
-    prisma.post.count({ where: isAdmin ? undefined : { creatorId: userId } }),
-    prisma.product.count({ where: isAdmin ? undefined : { vendorId: userId } }),
-    prisma.order.count({ where: isAdmin ? undefined : { userId } }),
-    prisma.order.aggregate({
-      where: isAdmin ? undefined : { userId },
-      _sum: { total: true },
-    }),
-  ]);
-
-  return {
-    users,
-    posts,
-    products,
-    orders,
-    revenue: revenue._sum.total ?? 0,
-  };
-}
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await getSessionUser();
@@ -46,7 +24,11 @@ export default async function DashboardPage() {
   const canAccessDashboard = isAdmin || user.role === "VENDOR";
   if (!canAccessDashboard) redirect("/profile");
 
-  const stats = await getDashboardStats(user.id, isAdmin);
+  const cookieStore = await cookies();
+  const stats =
+    (await fetchBackend<DashboardStats>("/api/v1/dashboard/stats", {
+      headers: { cookie: cookieStore.toString() },
+    })) ?? { users: 0, posts: 0, products: 0, orders: 0, revenue: 0 };
   const cards = [
     ...(isAdmin ? [{ label: "Users", value: stats.users.toLocaleString(), icon: Users }] : []),
     { label: "Posts", value: stats.posts.toLocaleString(), icon: BarChart3 },

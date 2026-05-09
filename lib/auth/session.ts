@@ -1,26 +1,12 @@
 import { cookies } from "next/headers";
-import { SignJWT, jwtVerify } from "jose";
-import type { DemoUser, UserRole } from "@/lib/types";
+import { createSessionToken, sessionCookieName, verifySessionToken, type SessionUser } from "@/lib/auth/token";
 
-const cookieName = "socialcommerce_session";
-const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? "dev-socialcommerce-secret-change-me");
-
-export type SessionUser = Pick<DemoUser, "id" | "name" | "username" | "email" | "avatarUrl"> & {
-  role: UserRole;
-};
-
-export async function createSessionToken(user: SessionUser) {
-  return new SignJWT(user)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("7d")
-    .sign(secret);
-}
+export type { SessionUser };
 
 export async function setSession(user: SessionUser) {
   const token = await createSessionToken(user);
   const cookieStore = await cookies();
-  cookieStore.set(cookieName, token, {
+  cookieStore.set(sessionCookieName, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -31,19 +17,13 @@ export async function setSession(user: SessionUser) {
 
 export async function clearSession() {
   const cookieStore = await cookies();
-  cookieStore.delete(cookieName);
+  cookieStore.delete(sessionCookieName);
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(cookieName)?.value;
+  const token = cookieStore.get(sessionCookieName)?.value;
 
   if (!token) return null;
-
-  try {
-    const verified = await jwtVerify(token, secret);
-    return verified.payload as SessionUser;
-  } catch {
-    return null;
-  }
+  return verifySessionToken(token);
 }
