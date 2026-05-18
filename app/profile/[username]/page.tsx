@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { MobileShell } from "@/components/layout/mobile-shell";
+import { FollowButton } from "@/components/profile/follow-button";
 import { PublicProfileTabs } from "@/components/profile/public-profile-tabs";
 import { SheetHost } from "@/components/sheets/sheet-host";
 import { Avatar } from "@/components/ui/avatar";
@@ -23,7 +25,9 @@ type PublicProfile = {
     posts: number;
     products: number;
     followers: number;
+    following: number;
   };
+  isFollowing: boolean;
   posts: FeedPost[];
   products: Product[];
 };
@@ -31,8 +35,11 @@ type PublicProfile = {
 export default async function PublicProfilePage({ params, searchParams }: PageProps) {
   const { username } = await params;
   const { tab } = await searchParams;
+  const cookieStore = await cookies();
   const [profile, sessionUser] = await Promise.all([
-    fetchBackend<PublicProfile>(`/api/v1/profiles/${encodeURIComponent(username)}`),
+    fetchBackend<PublicProfile>(`/api/v1/profiles/${encodeURIComponent(username)}`, {
+      headers: { cookie: cookieStore.toString() },
+    }),
     getSessionUser(),
   ]);
   const fallbackProfile =
@@ -51,7 +58,9 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
             posts: 0,
             products: 0,
             followers: 0,
+            following: 0,
           },
+          isFollowing: false,
           posts: [],
           products: [],
         }
@@ -86,10 +95,13 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
             <span className="mt-2 inline-flex rounded bg-[#fff1f7] px-2 py-1 text-xs font-black text-[#d62976]">{user.role}</span>
           </div>
         </div>
+        {sessionUser?.id !== user.id ? (
+          <FollowButton username={user.username} initialFollowers={stats.followers} initialIsFollowing={publicProfile.isFollowing} canFollow={Boolean(sessionUser)} />
+        ) : null}
 
         <p className="mt-5 text-base font-medium leading-7 text-zinc-600">{user.bio || "This profile has not added a bio yet."}</p>
 
-        <div className="mt-6 grid grid-cols-3 rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-center">
+        <div className="mt-6 grid grid-cols-4 rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-center">
           <div>
             <p className="text-2xl font-black">{formatCompactNumber(stats.posts)}</p>
             <p className="text-xs font-bold text-zinc-500">Posts</p>
@@ -101,6 +113,10 @@ export default async function PublicProfilePage({ params, searchParams }: PagePr
           <div>
             <p className="text-2xl font-black">{formatCompactNumber(stats.followers)}</p>
             <p className="text-xs font-bold text-zinc-500">Followers</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black">{formatCompactNumber(stats.following)}</p>
+            <p className="text-xs font-bold text-zinc-500">Following</p>
           </div>
         </div>
       </section>

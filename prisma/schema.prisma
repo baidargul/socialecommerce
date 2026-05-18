@@ -59,6 +59,8 @@ model User {
   likes    Like[]
   orders   Order[]
   products Product[]
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
 }
 
 model Post {
@@ -176,6 +178,20 @@ model Like {
   @@unique([postId, userId])
   @@index([postId])
   @@index([userId])
+}
+
+model Follow {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  followerId String   @db.ObjectId
+  followingId String  @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id])
+  following User @relation("UserFollowers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
 
 model CartItem {

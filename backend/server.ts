@@ -685,6 +685,7 @@ app.get("/api/v1/stories", async (_req, res) => {
 app.get("/api/v1/profiles/:username", async (req, res) => {
   const startedAt = Date.now();
   const username = getRouteParam(req.params.username);
+  const viewer = await getSession(req);
 
   if (canUseDatabase()) {
     const user = await prisma.user.findUnique({
@@ -693,7 +694,7 @@ app.get("/api/v1/profiles/:username", async (req, res) => {
     });
     if (!user) return failure(res, "NOT_FOUND", "Profile was not found.", startedAt, 404);
 
-    const [posts, products] = await Promise.all([
+    const [posts, products, followers, following, viewerFollow] = await Promise.all([
       prisma.post.findMany({
         where: { creatorId: user.id },
         orderBy: { createdAt: "desc" },
@@ -715,6 +716,18 @@ app.get("/api/v1/profiles/:username", async (req, res) => {
           vendor: true,
         },
       }),
+      prisma.follow.count({ where: { followingId: user.id } }),
+      prisma.follow.count({ where: { followerId: user.id } }),
+      viewer && viewer.id !== user.id
+        ? prisma.follow.findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: viewer.id,
+                followingId: user.id,
+              },
+            },
+          })
+        : Promise.resolve(null),
     ]);
 
     return success(
@@ -724,8 +737,10 @@ app.get("/api/v1/profiles/:username", async (req, res) => {
         stats: {
           posts: posts.length,
           products: products.length,
-          followers: 0,
+          followers,
+          following,
         },
+        isFollowing: Boolean(viewerFollow),
         posts: posts.map(mapPost),
         products: products.map(mapProduct),
       },
@@ -747,13 +762,71 @@ app.get("/api/v1/profiles/:username", async (req, res) => {
         posts: posts.length,
         products: products.length,
         followers: 0,
+        following: 0,
       },
+      isFollowing: false,
       posts,
       products,
     },
     startedAt,
     { cache: "demo" },
   );
+});
+
+app.post("/api/v1/profiles/:username/follow", async (req, res) => {
+  const startedAt = Date.now();
+  const viewer = await requireSession(req, res, startedAt, "Login is required to follow profiles.");
+  if (!viewer) return;
+
+  if (!canUseDatabase()) {
+    return failure(res, "DATABASE_UNAVAILABLE", "Database is required to follow profiles.", startedAt, 503);
+  }
+
+  const username = getRouteParam(req.params.username);
+  const target = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+  if (!target) return failure(res, "NOT_FOUND", "Profile was not found.", startedAt, 404);
+  if (target.id === viewer.id) return failure(res, "SELF_FOLLOW", "You cannot follow your own profile.", startedAt, 409);
+
+  await prisma.follow.upsert({
+    where: {
+      followerId_followingId: {
+        followerId: viewer.id,
+        followingId: target.id,
+      },
+    },
+    update: {},
+    create: {
+      followerId: viewer.id,
+      followingId: target.id,
+    },
+  });
+
+  const followers = await prisma.follow.count({ where: { followingId: target.id } });
+  return success(res, { isFollowing: true, followers }, startedAt);
+});
+
+app.delete("/api/v1/profiles/:username/follow", async (req, res) => {
+  const startedAt = Date.now();
+  const viewer = await requireSession(req, res, startedAt, "Login is required to unfollow profiles.");
+  if (!viewer) return;
+
+  if (!canUseDatabase()) {
+    return failure(res, "DATABASE_UNAVAILABLE", "Database is required to unfollow profiles.", startedAt, 503);
+  }
+
+  const username = getRouteParam(req.params.username);
+  const target = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+  if (!target) return failure(res, "NOT_FOUND", "Profile was not found.", startedAt, 404);
+
+  await prisma.follow.deleteMany({
+    where: {
+      followerId: viewer.id,
+      followingId: target.id,
+    },
+  });
+
+  const followers = await prisma.follow.count({ where: { followingId: target.id } });
+  return success(res, { isFollowing: false, followers }, startedAt);
 });
 
 app.get("/api/v1/products", async (req, res) => {

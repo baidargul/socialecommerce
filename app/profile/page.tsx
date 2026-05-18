@@ -12,6 +12,7 @@ type PublicProfileSummary = {
     posts: number;
     products: number;
     followers: number;
+    following: number;
   };
 };
 
@@ -19,7 +20,7 @@ export default async function ProfilePage() {
   const user = await getSessionUser();
   const canAccessDashboard = user?.role === "ADMIN" || user?.role === "VENDOR";
   const profile = user ? await fetchBackend<PublicProfileSummary>(`/api/v1/profiles/${encodeURIComponent(user.username)}`) : null;
-  const stats = profile?.stats ?? { posts: 0, products: 0, followers: 0 };
+  const stats = profile?.stats ?? { posts: 0, products: 0, followers: 0, following: 0 };
 
   return (
     <MobileShell>
