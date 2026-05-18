@@ -77,6 +77,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
   const initialPayload = useMemo(() => toPayload(user), [user]);
+  const [activeTab, setActiveTab] = useState<"profile" | "security" | "preview">("profile");
   const [savedForm, setSavedForm] = useState<SettingsPayload>(initialPayload);
   const [form, setForm] = useState<SettingsPayload>(initialPayload);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -97,6 +98,11 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
   const completion = Math.round((completionItems.filter(Boolean).length / completionItems.length) * 100);
   const title = variant === "vendor" ? "Vendor Profile" : "Account Details";
   const subtitle = variant === "vendor" ? "Keep your public seller identity accurate across the shop." : "Keep your social commerce identity current.";
+  const tabs = [
+    { key: "profile" as const, label: "Profile", icon: Sparkles, hint: isDirty ? "Unsaved" : "Saved" },
+    { key: "security" as const, label: "Security", icon: KeyRound, hint: passwordStatus === "saved" ? "Updated" : passwordStatus === "error" ? "Check" : "Password" },
+    { key: "preview" as const, label: "Preview", icon: Eye, hint: `${completion}%` },
+  ];
 
   function updateField(field: keyof SettingsPayload, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -193,8 +199,32 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-      <section className="grid gap-5">
+    <div className="grid gap-5">
+      <div className="grid grid-cols-3 gap-2 rounded-lg border border-zinc-200 bg-white p-2">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              className={cn(
+                "grid min-h-16 place-items-center gap-1 rounded px-2 text-center text-xs font-black transition sm:flex sm:min-h-12 sm:justify-center sm:gap-2 sm:text-sm",
+                isActive ? "bg-zinc-950 text-white" : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950",
+              )}
+              onClick={() => setActiveTab(tab.key)}
+              type="button"
+            >
+              <span className="flex items-center gap-2">
+                <Icon className="size-4" />
+                {tab.label}
+              </span>
+              <span className={cn("text-[10px] font-black sm:text-xs", isActive ? "text-white/75" : "text-zinc-400")}>{tab.hint}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "profile" ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -239,7 +269,9 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
             </Button>
           </div>
         </div>
+      ) : null}
 
+      {activeTab === "security" ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-5">
           <div className="flex items-center gap-2">
             <KeyRound className="size-5 text-zinc-500" />
@@ -272,9 +304,10 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
             Update Password
           </Button>
         </div>
-      </section>
+      ) : null}
 
-      <aside className="grid content-start gap-5">
+      {activeTab === "preview" ? (
+        <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <section className="rounded-lg border border-zinc-200 bg-white p-5">
           <div className="flex items-center gap-2">
             <Eye className="size-5 text-zinc-500" />
@@ -338,7 +371,8 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
             ))}
           </div>
         </section>
-      </aside>
+        </div>
+      ) : null}
     </div>
   );
 }
