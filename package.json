@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:backend": "tsx backend/server.ts",
-    "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev\"",
+    "dev:all": "concurrently \"npm run dev:backend\" \"node scripts/wait-for-backend.mjs && npm run dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

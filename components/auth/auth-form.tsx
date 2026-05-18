@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/input";
+import type { SessionUser } from "@/lib/auth/session";
 import { useAuthStore } from "@/store/use-auth-store";
 
 type AuthFormProps = {
@@ -16,6 +17,32 @@ function getSafeNextPath(nextPath: string) {
   return nextPath;
 }
 
+type AuthResponse = {
+  success: boolean;
+  data?: {
+    user?: SessionUser;
+  };
+  error?: {
+    message?: string;
+  } | null;
+};
+
+async function readAuthResponse(response: Response): Promise<AuthResponse> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return (await response.json()) as AuthResponse;
+  }
+
+  return {
+    success: false,
+    error: {
+      message: response.ok
+        ? "The authentication service returned an invalid response."
+        : "The authentication service is unavailable. Make sure the backend server is running.",
+    },
+  };
+}
+
 export function AuthForm({ mode, nextPath }: AuthFormProps) {
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
@@ -26,22 +53,27 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
     setLoading(true);
     setError("");
 
-    const payload = Object.fromEntries(formData);
-    const response = await fetch(`/api/v1/auth/${mode}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const body = await response.json();
-    setLoading(false);
+    try {
+      const payload = Object.fromEntries(formData);
+      const response = await fetch(`/api/v1/auth/${mode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await readAuthResponse(response);
 
-    if (!body.success) {
-      setError(body.error?.message ?? "Something went wrong.");
-      return;
+      if (!response.ok || !body.success || !body.data?.user) {
+        setError(body.error?.message ?? "Something went wrong.");
+        return;
+      }
+
+      setUser(body.data.user);
+      router.push(getSafeNextPath(nextPath));
+    } catch {
+      setError("The authentication service is unavailable. Make sure the backend server is running.");
+    } finally {
+      setLoading(false);
     }
-
-    setUser(body.data.user);
-    router.push(getSafeNextPath(nextPath));
   }
 
   return (
