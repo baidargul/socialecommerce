@@ -4,7 +4,6 @@ import { AuthRequired } from "@/components/auth/auth-required";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/auth/session";
 import { demoPosts } from "@/lib/demo-data";
 
@@ -44,16 +43,26 @@ export default async function ProfilePage() {
 
         <div className="mt-6 grid gap-3">
           {[
-            { label: "Orders", icon: Package },
-            { label: "Wishlist", icon: Heart },
-            { label: "Saved Products", icon: ShoppingBag },
-            { label: "Settings", icon: Settings },
+            { label: "Orders", icon: Package, href: null },
+            { label: "Wishlist", icon: Heart, href: null },
+            { label: "Saved Products", icon: ShoppingBag, href: null },
+            { label: "Settings", icon: Settings, href: "/settings" },
           ].map((item) => {
             const Icon = item.icon;
-            return (
-              <div key={item.label} className="flex items-center gap-3 rounded-lg border border-zinc-100 p-4 text-lg font-black">
+            const className = "flex items-center gap-3 rounded-lg border border-zinc-100 p-4 text-lg font-black";
+            const content = (
+              <>
                 <Icon className="size-6" />
                 {item.label}
+              </>
+            );
+            return item.href ? (
+              <Link key={item.label} href={item.href} className={className}>
+                {content}
+              </Link>
+            ) : (
+              <div key={item.label} className={className}>
+                {content}
               </div>
             );
           })}
@@ -69,7 +78,12 @@ export default async function ProfilePage() {
               Dashboard
             </Link>
           ) : null}
-          <Button className="w-full">Manage Account</Button>
+          <Link
+            href="/settings"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#5f7dde] px-5 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
+          >
+            Manage Account
+          </Link>
           <LogoutButton />
         </div>
       </div>

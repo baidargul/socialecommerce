@@ -12,6 +12,26 @@ export const loginSchema = z.object({
   password: z.string().min(8).max(100),
 });
 
+export const accountSettingsSchema = z.object({
+  name: z.string().min(2).max(80),
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
+  email: z.string().email(),
+  phone: z.string().min(7).max(30).optional().or(z.literal("")),
+  bio: z.string().max(240).optional().or(z.literal("")),
+  avatarUrl: z.string().url().optional().or(z.literal("")),
+});
+
+export const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(8).max(100),
+    confirmPassword: z.string().min(8).max(100),
+  })
+  .refine((input) => input.newPassword === input.confirmPassword, {
+    message: "New passwords must match.",
+    path: ["confirmPassword"],
+  });
+
 export const commentSchema = z.object({
   text: z.string().min(1).max(500),
 });

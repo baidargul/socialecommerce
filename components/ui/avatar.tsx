@@ -28,7 +28,7 @@ export function Avatar({ src, alt, size = "md", ring = "none" }: AvatarProps) {
     >
       <span className="relative block size-full overflow-hidden rounded-full border-2 border-white bg-zinc-100">
         {src ? (
-          <Image src={src} alt={alt} fill sizes="96px" className="object-cover" />
+          <Image src={src} alt={alt} fill sizes="96px" className="object-cover" unoptimized />
         ) : (
           <span className="grid size-full place-items-center text-xs font-black text-zinc-500">{initials}</span>
         )}

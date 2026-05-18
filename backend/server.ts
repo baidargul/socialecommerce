@@ -9,7 +9,18 @@ import type { Prisma } from "@prisma/client";
 import { createSessionToken, sessionCookieName, type SessionUser, verifySessionToken } from "../lib/auth/token";
 import { canUseDatabase, prisma } from "../lib/prisma";
 import { demoComments, demoPosts, demoProducts, demoStories, demoUsers } from "../lib/demo-data";
-import { cartQuantitySchema, categoryCreateSchema, commentSchema, loginSchema, orderSchema, productBatchSchema, productCreateSchema, signupSchema } from "../lib/validation/schemas";
+import {
+  accountSettingsSchema,
+  cartQuantitySchema,
+  categoryCreateSchema,
+  commentSchema,
+  loginSchema,
+  orderSchema,
+  passwordChangeSchema,
+  productBatchSchema,
+  productCreateSchema,
+  signupSchema,
+} from "../lib/validation/schemas";
 import type { CategoryItem, DemoUser, FeedPost, Product, Story } from "../lib/types";
 
 const app = express();
@@ -112,6 +123,24 @@ function mapUser(user: PostWithRelations["creator"] | ProductWithRelations["vend
     email: user.email ?? undefined,
     avatarUrl: user.avatarUrl ?? "",
     bio: user.bio ?? undefined,
+    role: user.role,
+  };
+}
+
+function mapSessionUser(user: {
+  id: string;
+  name: string;
+  username: string;
+  email: string | null;
+  avatarUrl: string | null;
+  role: SessionUser["role"];
+}): SessionUser {
+  return {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    email: user.email ?? undefined,
+    avatarUrl: user.avatarUrl ?? "",
     role: user.role,
   };
 }
@@ -408,6 +437,131 @@ app.get("/api/v1/auth/me", async (req, res) => {
   const startedAt = Date.now();
   const user = await getSession(req);
   return success(res, { user }, startedAt);
+});
+
+app.get("/api/v1/account/settings", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to view settings.");
+  if (!user) return;
+
+  if (!canUseDatabase()) {
+    return success(
+      res,
+      {
+        user: {
+          ...user,
+          phone: "",
+          bio: "",
+        },
+      },
+      startedAt,
+      { cache: "demo" },
+    );
+  }
+
+  const account = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true, name: true, username: true, email: true, phone: true, avatarUrl: true, bio: true, role: true },
+  });
+  if (!account) return failure(res, "NOT_FOUND", "Account was not found.", startedAt, 404);
+
+  return success(
+    res,
+    {
+      user: {
+        ...mapSessionUser(account),
+        phone: account.phone ?? "",
+        bio: account.bio ?? "",
+      },
+    },
+    startedAt,
+  );
+});
+
+app.patch("/api/v1/account/settings", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to update settings.");
+  if (!user) return;
+
+  if (!canUseDatabase()) {
+    return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update account settings.", startedAt, 503);
+  }
+
+  const parsed = accountSettingsSchema.safeParse(req.body);
+  if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Please enter valid account details.", startedAt, 422);
+
+  const input = parsed.data;
+  const existing = await prisma.user.findFirst({
+    where: {
+      id: { not: user.id },
+      OR: [
+        { username: input.username },
+        { email: input.email },
+        ...(input.phone ? [{ phone: input.phone }] : []),
+      ],
+    },
+    select: { username: true, email: true, phone: true },
+  });
+  if (existing?.username === input.username) return failure(res, "USERNAME_EXISTS", "Username is already in use.", startedAt, 409);
+  if (existing?.email === input.email) return failure(res, "EMAIL_EXISTS", "Email is already in use.", startedAt, 409);
+  if (input.phone && existing?.phone === input.phone) return failure(res, "PHONE_EXISTS", "Phone number is already in use.", startedAt, 409);
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      name: input.name,
+      username: input.username,
+      email: input.email,
+      phone: input.phone || null,
+      bio: input.bio || null,
+      avatarUrl: input.avatarUrl || null,
+    },
+    select: { id: true, name: true, username: true, email: true, phone: true, avatarUrl: true, bio: true, role: true },
+  });
+  const sessionUser = mapSessionUser(updated);
+  setSessionCookie(res, await createSessionToken(sessionUser));
+
+  return success(
+    res,
+    {
+      user: {
+        ...sessionUser,
+        phone: updated.phone ?? "",
+        bio: updated.bio ?? "",
+      },
+    },
+    startedAt,
+  );
+});
+
+app.patch("/api/v1/account/password", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to update password.");
+  if (!user) return;
+
+  if (!canUseDatabase()) {
+    return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update password.", startedAt, 503);
+  }
+
+  const parsed = passwordChangeSchema.safeParse(req.body);
+  if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Please enter valid password details.", startedAt, 422);
+
+  const account = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { password: true },
+  });
+  if (!account) return failure(res, "NOT_FOUND", "Account was not found.", startedAt, 404);
+  if (!account.password) return failure(res, "PASSWORD_UNSUPPORTED", "This account does not have a password to change.", startedAt, 409);
+
+  const validPassword = await bcrypt.compare(parsed.data.currentPassword, account.password);
+  if (!validPassword) return failure(res, "INVALID_PASSWORD", "Current password is incorrect.", startedAt, 401);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: await bcrypt.hash(parsed.data.newPassword, 12) },
+  });
+
+  return success(res, { ok: true }, startedAt);
 });
 
 app.get("/api/v1/posts", async (req, res) => {
