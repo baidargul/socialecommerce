@@ -5,11 +5,21 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { Avatar } from "@/components/ui/avatar";
 import { getSessionUser } from "@/lib/auth/session";
-import { demoPosts } from "@/lib/demo-data";
+import { fetchBackend } from "@/lib/backend-api";
+
+type PublicProfileSummary = {
+  stats: {
+    posts: number;
+    products: number;
+    followers: number;
+  };
+};
 
 export default async function ProfilePage() {
   const user = await getSessionUser();
   const canAccessDashboard = user?.role === "ADMIN" || user?.role === "VENDOR";
+  const profile = user ? await fetchBackend<PublicProfileSummary>(`/api/v1/profiles/${encodeURIComponent(user.username)}`) : null;
+  const stats = profile?.stats ?? { posts: 0, products: 0, followers: 0 };
 
   return (
     <MobileShell>
@@ -27,16 +37,16 @@ export default async function ProfilePage() {
           </div>
           <div className="mt-6 grid grid-cols-3 text-center">
             <div>
-              <p className="text-2xl font-black">{demoPosts.length}</p>
+              <p className="text-2xl font-black">{stats.posts}</p>
               <p className="text-sm font-medium text-zinc-500">Posts</p>
             </div>
             <div>
-              <p className="text-2xl font-black">12.4k</p>
+              <p className="text-2xl font-black">{stats.followers}</p>
               <p className="text-sm font-medium text-zinc-500">Followers</p>
             </div>
             <div>
-              <p className="text-2xl font-black">86</p>
-              <p className="text-sm font-medium text-zinc-500">Orders</p>
+              <p className="text-2xl font-black">{stats.products}</p>
+              <p className="text-sm font-medium text-zinc-500">Products</p>
             </div>
           </div>
         </section>
@@ -45,7 +55,7 @@ export default async function ProfilePage() {
           {[
             { label: "Orders", icon: Package, href: null },
             { label: "Wishlist", icon: Heart, href: null },
-            { label: "Saved Products", icon: ShoppingBag, href: null },
+            { label: "My Products", icon: ShoppingBag, href: `/profile/${user.username}?tab=products` },
             { label: "Settings", icon: Settings, href: "/settings" },
           ].map((item) => {
             const Icon = item.icon;
@@ -69,6 +79,12 @@ export default async function ProfilePage() {
         </div>
 
         <div className="mt-8 grid gap-3">
+          <Link
+            href={`/profile/${user.username}`}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-5 text-sm font-bold text-zinc-950 shadow-sm transition active:scale-[0.98]"
+          >
+            View Public Profile
+          </Link>
           {canAccessDashboard ? (
             <Link
               href="/dashboard"

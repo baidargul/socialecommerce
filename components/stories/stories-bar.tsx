@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { X } from "lucide-react";
 import Image from "next/image";
 import { Avatar } from "@/components/ui/avatar";
@@ -68,10 +69,10 @@ export function StoriesBar({ stories }: { stories: Story[] }) {
             })}
           </div>
           <div className="absolute inset-x-5 top-12 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <Link href={`/profile/${activeStory.creator.username}`} className="flex items-center gap-3">
               <Avatar src={activeStory.creator.avatarUrl} alt={activeStory.creator.username} size="sm" />
               <span className="text-xl font-black text-white drop-shadow">{activeStory.creator.username}</span>
-            </div>
+            </Link>
             <IconButton
               label="Close story"
               icon={<X className="size-9 drop-shadow-[0_1px_2px_rgba(255,255,255,0.85)]" />}

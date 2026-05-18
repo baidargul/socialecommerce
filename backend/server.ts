@@ -140,7 +140,15 @@ function failure(res: Response, code: string, message: string, startedAt: number
   });
 }
 
-function mapUser(user: PostWithRelations["creator"] | ProductWithRelations["vendor"]): DemoUser {
+function mapUser(user: {
+  id: string;
+  name: string;
+  username: string;
+  email: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  role: DemoUser["role"];
+}): DemoUser {
   return {
     id: user.id,
     name: user.name,
@@ -672,6 +680,80 @@ app.get("/api/v1/stories", async (_req, res) => {
   if (databasePosts) return success(res, { items: getStoriesFromPosts(databasePosts) }, startedAt);
 
   return success(res, { items: demoStories }, startedAt, { cache: "demo" });
+});
+
+app.get("/api/v1/profiles/:username", async (req, res) => {
+  const startedAt = Date.now();
+  const username = getRouteParam(req.params.username);
+
+  if (canUseDatabase()) {
+    const user = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true, name: true, username: true, email: true, avatarUrl: true, bio: true, role: true },
+    });
+    if (!user) return failure(res, "NOT_FOUND", "Profile was not found.", startedAt, 404);
+
+    const [posts, products] = await Promise.all([
+      prisma.post.findMany({
+        where: { creatorId: user.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          creator: true,
+          product: {
+            include: {
+              category: true,
+              vendor: true,
+            },
+          },
+        },
+      }),
+      prisma.product.findMany({
+        where: { vendorId: user.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          category: true,
+          vendor: true,
+        },
+      }),
+    ]);
+
+    return success(
+      res,
+      {
+        user: mapUser(user),
+        stats: {
+          posts: posts.length,
+          products: products.length,
+          followers: 0,
+        },
+        posts: posts.map(mapPost),
+        products: products.map(mapProduct),
+      },
+      startedAt,
+    );
+  }
+
+  const user = demoUsers.find((item) => item.username === username);
+  if (!user) return failure(res, "NOT_FOUND", "Profile was not found.", startedAt, 404);
+
+  const posts = demoPosts.filter((post) => post.creator.id === user.id || post.creator.username === user.username);
+  const products = demoProducts.filter((product) => product.vendorId === user.id);
+
+  return success(
+    res,
+    {
+      user,
+      stats: {
+        posts: posts.length,
+        products: products.length,
+        followers: 0,
+      },
+      posts,
+      products,
+    },
+    startedAt,
+    { cache: "demo" },
+  );
 });
 
 app.get("/api/v1/products", async (req, res) => {

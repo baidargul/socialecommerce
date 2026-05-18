@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Heart, MessageCircle, MoreHorizontal, Send, ShoppingBag } from "lucide-react";
 import type { FeedPost } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/utils";
@@ -22,10 +23,10 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
   return (
     <article className="border-b border-zinc-100 pb-10">
       <header className="flex items-center justify-between px-5 py-4">
-        <div className="flex items-center gap-3">
+        <Link href={`/profile/${post.creator.username}`} className="flex items-center gap-3">
           <Avatar src={post.creator.avatarUrl} alt={post.creator.username} size="sm" />
           <p className="text-[18px] font-black">{post.creator.username}</p>
-        </div>
+        </Link>
         <IconButton label="Post options" icon={<MoreHorizontal className="size-6" />} />
       </header>
 
@@ -64,7 +65,10 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
         </div>
 
         <p className="mt-3 text-[17px] leading-snug">
-          <span className="font-black">{post.creator.username}</span> {post.caption}{" "}
+          <Link href={`/profile/${post.creator.username}`} className="font-black">
+            {post.creator.username}
+          </Link>{" "}
+          {post.caption}{" "}
           {post.hashtags.map((tag) => (tag ? <span key={tag}>#{tag} </span> : null))}
         </p>
 
