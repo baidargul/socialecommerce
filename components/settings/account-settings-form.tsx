@@ -56,13 +56,20 @@ function isImageUrl(value: string) {
   }
 }
 
-async function readEnvelope<T>(response: Response): Promise<ApiEnvelope<T>> {
+async function readEnvelope<T>(response: Response, fallbackMessage = "The server returned an invalid response."): Promise<ApiEnvelope<T>> {
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) return (await response.json()) as ApiEnvelope<T>;
+  const text = await response.text().catch(() => "");
+  const message = text.includes("Cannot POST")
+    ? "The upload route is not available yet. Restart npm run dev:all so the backend loads the profile upload endpoint."
+    : response.status >= 500
+      ? "The upload service is unavailable. Restart the backend and try again."
+      : fallbackMessage;
+
   return {
     success: false,
     data: null,
-    error: { code: "INVALID_RESPONSE", message: "The server returned an invalid response." },
+    error: { code: "INVALID_RESPONSE", message },
   };
 }
 
@@ -139,7 +146,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
         method: "POST",
         body: formData,
       });
-      const body = await readEnvelope<{ user: AccountSettingsUser }>(response);
+      const body = await readEnvelope<{ user: AccountSettingsUser }>(response, "Profile image upload did not return a valid response.");
       if (!response.ok || !body.success || !body.data?.user) {
         setAvatarStatus("error");
         setAvatarMessage(body.error?.message ?? "Could not upload profile image.");
