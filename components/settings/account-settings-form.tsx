@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Eye, KeyRound, RefreshCcw, Save, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, CheckCircle2, Eye, KeyRound, RefreshCcw, Save, ShieldCheck, Sparkles } from "lucide-react";
 import type { SessionUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/use-auth-store";
@@ -69,10 +69,13 @@ async function readEnvelope<T>(response: Response): Promise<ApiEnvelope<T>> {
 export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps) {
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
-  const initial = useMemo(() => toPayload(user), [user]);
-  const [form, setForm] = useState<SettingsPayload>(initial);
+  const initialPayload = useMemo(() => toPayload(user), [user]);
+  const [savedForm, setSavedForm] = useState<SettingsPayload>(initialPayload);
+  const [form, setForm] = useState<SettingsPayload>(initialPayload);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [profileMessage, setProfileMessage] = useState("");
+  const [avatarStatus, setAvatarStatus] = useState<"idle" | "uploading" | "uploaded" | "error">("idle");
+  const [avatarMessage, setAvatarMessage] = useState("");
   const [passwordStatus, setPasswordStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwords, setPasswords] = useState({
@@ -81,10 +84,10 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
     confirmPassword: "",
   });
 
-  const isDirty = JSON.stringify(form) !== JSON.stringify(initial);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm);
   const previewImageUrl = isImageUrl(form.avatarUrl) ? form.avatarUrl : "";
-  const completedFields = Object.values(form).filter(Boolean).length;
-  const completion = Math.round((completedFields / Object.keys(form).length) * 100);
+  const completionItems = [Boolean(form.name && form.username), Boolean(form.email || form.phone), Boolean(form.avatarUrl), Boolean(form.bio)];
+  const completion = Math.round((completionItems.filter(Boolean).length / completionItems.length) * 100);
   const title = variant === "vendor" ? "Vendor Profile" : "Account Details";
   const subtitle = variant === "vendor" ? "Keep your public seller identity accurate across the shop." : "Keep your social commerce identity current.";
 
@@ -112,13 +115,47 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
       }
 
       setUser(body.data.user);
-      setForm(toPayload(body.data.user));
+      const updatedForm = toPayload(body.data.user);
+      setSavedForm(updatedForm);
+      setForm(updatedForm);
       setProfileStatus("saved");
       setProfileMessage("Settings saved.");
       router.refresh();
     } catch {
       setProfileStatus("error");
       setProfileMessage("Could not reach the settings service.");
+    }
+  }
+
+  async function uploadAvatar(file: File | undefined) {
+    if (!file) return;
+    setAvatarStatus("uploading");
+    setAvatarMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const response = await fetch("/api/v1/account/avatar", {
+        method: "POST",
+        body: formData,
+      });
+      const body = await readEnvelope<{ user: AccountSettingsUser }>(response);
+      if (!response.ok || !body.success || !body.data?.user) {
+        setAvatarStatus("error");
+        setAvatarMessage(body.error?.message ?? "Could not upload profile image.");
+        return;
+      }
+
+      setUser(body.data.user);
+      const updatedForm = toPayload(body.data.user);
+      setSavedForm(updatedForm);
+      setForm(updatedForm);
+      setAvatarStatus("uploaded");
+      setAvatarMessage("Profile image uploaded.");
+      router.refresh();
+    } catch {
+      setAvatarStatus("error");
+      setAvatarMessage("Could not reach the upload service.");
     }
   }
 
@@ -170,7 +207,6 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
             <TextInput label="Username" value={form.username} onChange={(event) => updateField("username", event.target.value)} />
             <TextInput label="Email" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} />
             <TextInput label="Phone" value={form.phone} onChange={(event) => updateField("phone", event.target.value)} />
-            <TextInput label="Avatar URL" className="md:col-span-2" value={form.avatarUrl} onChange={(event) => updateField("avatarUrl", event.target.value)} />
             <label className="grid gap-2 text-sm font-semibold text-zinc-900 md:col-span-2">
               Bio
               <textarea
@@ -191,7 +227,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
             <Button icon={<Save className="size-4" />} loading={profileStatus === "saving"} disabled={!isDirty || profileStatus === "saving"} onClick={saveProfile}>
               Save Changes
             </Button>
-            <Button intent="secondary" icon={<RefreshCcw className="size-4" />} disabled={!isDirty || profileStatus === "saving"} onClick={() => setForm(initial)}>
+            <Button intent="secondary" icon={<RefreshCcw className="size-4" />} disabled={!isDirty || profileStatus === "saving"} onClick={() => setForm(savedForm)}>
               Reset
             </Button>
           </div>
@@ -239,9 +275,24 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
           </div>
           <div className="mt-5 rounded-lg border border-zinc-100 bg-zinc-50 p-4">
             <div className="flex items-center gap-3">
-              <span className="relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-200 text-sm font-black text-zinc-500">
-                {previewImageUrl ? <Image src={previewImageUrl} alt={form.username} fill sizes="64px" className="object-cover" unoptimized /> : form.username.slice(0, 2).toUpperCase()}
-              </span>
+              <label className="group relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-zinc-200 text-base font-black text-zinc-500 ring-4 ring-white transition hover:ring-[#fff1f7]">
+                {previewImageUrl ? <Image src={previewImageUrl} alt={form.username} fill sizes="80px" className="object-cover" unoptimized /> : form.username.slice(0, 2).toUpperCase()}
+                <span className="absolute inset-0 grid place-items-center bg-black/0 text-white transition group-hover:bg-black/45">
+                  <span className="grid size-9 place-items-center rounded-full bg-black/65 opacity-0 transition group-hover:opacity-100">
+                    <Camera className="size-5" />
+                  </span>
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={avatarStatus === "uploading"}
+                  onChange={(event) => {
+                    void uploadAvatar(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
               <div className="min-w-0">
                 <p className="truncate text-lg font-black">{form.name || "Your name"}</p>
                 <p className="truncate text-sm font-bold text-zinc-500">@{form.username || "username"}</p>
@@ -249,6 +300,12 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
               </div>
             </div>
             <p className="mt-4 text-sm font-medium leading-6 text-zinc-600">{form.bio || "Add a short bio so customers and creators know what makes this profile distinct."}</p>
+            <p className="mt-3 text-xs font-bold text-zinc-500">
+              {avatarStatus === "uploading" ? "Uploading profile image..." : "Click the display picture to upload JPG, PNG, or WebP up to 5 MB."}
+            </p>
+            {avatarMessage ? (
+              <p className={cn("mt-3 rounded-lg p-3 text-sm font-bold", avatarStatus === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>{avatarMessage}</p>
+            ) : null}
           </div>
         </section>
 

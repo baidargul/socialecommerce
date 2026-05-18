@@ -27,7 +27,9 @@ const app = express();
 const port = Number(process.env.BACKEND_PORT ?? 4000);
 const frontendOrigin = process.env.FRONTEND_URL ?? "http://localhost:3000";
 const productUploadDir = path.join(process.cwd(), "public", "uploads", "products");
+const profileUploadDir = path.join(process.cwd(), "public", "uploads", "profiles");
 mkdirSync(productUploadDir, { recursive: true });
+mkdirSync(profileUploadDir, { recursive: true });
 const upload = multer({
   storage: multer.diskStorage({
     destination: productUploadDir,
@@ -49,6 +51,29 @@ const upload = multer({
   fileFilter: (_req, file, callback) => {
     if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) callback(null, true);
     else callback(new Error("Only image and video files are allowed."));
+  },
+});
+const profileUpload = multer({
+  storage: multer.diskStorage({
+    destination: profileUploadDir,
+    filename: (_req, file, callback) => {
+      const extension = path.extname(file.originalname);
+      const baseName = path
+        .basename(file.originalname, extension)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40);
+      callback(null, `${Date.now()}-${crypto.randomUUID()}-${baseName || "avatar"}${extension}`);
+    },
+  }),
+  limits: {
+    files: 1,
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, callback) => {
+    if (file.mimetype.startsWith("image/")) callback(null, true);
+    else callback(new Error("Only image files are allowed."));
   },
 });
 
@@ -514,7 +539,6 @@ app.patch("/api/v1/account/settings", async (req, res) => {
       email: input.email,
       phone: input.phone || null,
       bio: input.bio || null,
-      avatarUrl: input.avatarUrl || null,
     },
     select: { id: true, name: true, username: true, email: true, phone: true, avatarUrl: true, bio: true, role: true },
   });
@@ -531,6 +555,40 @@ app.patch("/api/v1/account/settings", async (req, res) => {
       },
     },
     startedAt,
+  );
+});
+
+app.post("/api/v1/account/avatar", profileUpload.single("avatar"), async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to upload an avatar.");
+  if (!user) return;
+
+  if (!canUseDatabase()) {
+    return failure(res, "DATABASE_UNAVAILABLE", "Database is required to upload profile images.", startedAt, 503);
+  }
+
+  const file = req.file as Express.Multer.File | undefined;
+  if (!file) return failure(res, "VALIDATION_ERROR", "Choose an image file to upload.", startedAt, 422);
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { avatarUrl: `/uploads/profiles/${file.filename}` },
+    select: { id: true, name: true, username: true, email: true, phone: true, avatarUrl: true, bio: true, role: true },
+  });
+  const sessionUser = mapSessionUser(updated);
+  setSessionCookie(res, await createSessionToken(sessionUser));
+
+  return success(
+    res,
+    {
+      user: {
+        ...sessionUser,
+        phone: updated.phone ?? "",
+        bio: updated.bio ?? "",
+      },
+    },
+    startedAt,
+    { status: 201 },
   );
 });
 

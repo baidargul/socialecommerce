@@ -18,7 +18,6 @@ export const accountSettingsSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(7).max(30).optional().or(z.literal("")),
   bio: z.string().max(240).optional().or(z.literal("")),
-  avatarUrl: z.string().url().optional().or(z.literal("")),
 });
 
 export const passwordChangeSchema = z
