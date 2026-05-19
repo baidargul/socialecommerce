@@ -231,6 +231,7 @@ model Order {
 
 type OrderItem {
   productId String @db.ObjectId
+  vendorId  String @db.ObjectId
   name      String
   imageUrl  String?
   price     Float

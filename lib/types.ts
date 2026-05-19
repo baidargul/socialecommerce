@@ -66,6 +66,52 @@ export type CartLine = {
   quantity: number;
 };
 
+export type Address = {
+  fullName: string;
+  phone: string;
+  addressLine: string;
+  city: string;
+  state?: string;
+  country: string;
+  postalCode?: string;
+};
+
+export type OrderItem = {
+  productId: string;
+  vendorId: string;
+  name: string;
+  imageUrl?: string;
+  price: number;
+  quantity: number;
+  total: number;
+};
+
+export type OrderSummary = {
+  id: string;
+  userId: string;
+  status: "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "REFUNDED";
+  subtotal: number;
+  shippingAmount: number;
+  discountAmount: number;
+  total: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  itemCount: number;
+  customerName: string;
+  customerEmail?: string;
+  createdAt: string;
+};
+
+export type OrderDetail = OrderSummary & {
+  shippingAddress: Address;
+  items: OrderItem[];
+};
+
+export type CheckoutInput = {
+  paymentMethod: "COD";
+  shippingAddress: Address;
+};
+
 export type CategoryItem = {
   id: string;
   name: string;

@@ -41,7 +41,7 @@ export const cartQuantitySchema = z.object({
 });
 
 export const orderSchema = z.object({
-  paymentMethod: z.enum(["COD", "BANK_TRANSFER"]),
+  paymentMethod: z.literal("COD"),
   shippingAddress: z.object({
     fullName: z.string().min(2),
     phone: z.string().min(7),
@@ -51,6 +51,10 @@ export const orderSchema = z.object({
     country: z.string().min(2),
     postalCode: z.string().optional(),
   }),
+});
+
+export const orderStatusSchema = z.object({
+  status: z.enum(["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]),
 });
 
 export const productCreateSchema = z.object({

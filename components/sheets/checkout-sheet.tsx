@@ -14,6 +14,7 @@ export function CheckoutSheet({ open }: { open: boolean }) {
   const product = useSheetStore((state) => state.selectedProduct);
   const closeSheet = useSheetStore((state) => state.closeSheet);
   const addProduct = useCartStore((state) => state.addProduct);
+  const loading = useCartStore((state) => state.loading);
 
   if (!product) return null;
   const image = product.images[0];
@@ -48,14 +49,15 @@ export function CheckoutSheet({ open }: { open: boolean }) {
       <Button
         className="mt-10 w-full text-2xl"
         icon={<ShoppingBag className="size-6" />}
-        disabled={product.status === "OUT_OF_STOCK"}
-        onClick={() => {
+        disabled={product.status === "OUT_OF_STOCK" || loading}
+        loading={loading}
+        onClick={async () => {
           if (!requireAuth()) return;
-          addProduct(product);
+          await addProduct(product);
           closeSheet();
         }}
       >
-        {product.status === "OUT_OF_STOCK" ? "Out of Stock" : "Proceed to Payment"}
+        {product.status === "OUT_OF_STOCK" ? "Out of Stock" : "Add to Cart"}
       </Button>
     </Sheet>
   );

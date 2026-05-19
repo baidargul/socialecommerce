@@ -54,7 +54,7 @@ export default async function ProfilePage() {
 
         <div className="mt-6 grid gap-3">
           {[
-            { label: "Orders", icon: Package, href: null },
+            { label: "Orders", icon: Package, href: "/orders" },
             { label: "Wishlist", icon: Heart, href: null },
             { label: "My Products", icon: ShoppingBag, href: `/profile/${user.username}?tab=products` },
             { label: "Settings", icon: Settings, href: "/settings" },

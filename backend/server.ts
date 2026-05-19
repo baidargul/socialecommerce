@@ -16,12 +16,13 @@ import {
   commentSchema,
   loginSchema,
   orderSchema,
+  orderStatusSchema,
   passwordChangeSchema,
   productBatchSchema,
   productCreateSchema,
   signupSchema,
 } from "../lib/validation/schemas";
-import type { CategoryItem, DemoUser, FeedPost, Product, Story } from "../lib/types";
+import type { CartLine, CategoryItem, DemoUser, FeedPost, OrderDetail, OrderSummary, Product, Story } from "../lib/types";
 
 const app = express();
 const port = Number(process.env.BACKEND_PORT ?? 4000);
@@ -105,6 +106,8 @@ type CategoryWithCount = Prisma.CategoryGetPayload<{
     };
   };
 }>;
+
+type OrderRecord = Prisma.OrderGetPayload<Record<string, never>>;
 
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json());
@@ -268,6 +271,64 @@ function mapCategory(category: CategoryWithCount): CategoryItem {
     productCount: category._count.products,
     createdAt: category.createdAt.toISOString(),
   };
+}
+
+function mapOrderSummary(order: OrderRecord): OrderSummary {
+  return {
+    id: order.id,
+    userId: order.userId,
+    status: order.status,
+    subtotal: order.subtotal,
+    shippingAmount: order.shippingAmount,
+    discountAmount: order.discountAmount,
+    total: order.total,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+    customerName: order.shippingAddress.fullName,
+    createdAt: order.createdAt.toISOString(),
+  };
+}
+
+function mapOrderDetail(order: OrderRecord): OrderDetail {
+  return {
+    ...mapOrderSummary(order),
+    shippingAddress: {
+      fullName: order.shippingAddress.fullName,
+      phone: order.shippingAddress.phone,
+      addressLine: order.shippingAddress.addressLine,
+      city: order.shippingAddress.city,
+      state: order.shippingAddress.state ?? undefined,
+      country: order.shippingAddress.country,
+      postalCode: order.shippingAddress.postalCode ?? undefined,
+    },
+    items: order.items.map((item) => ({
+      productId: item.productId,
+      vendorId: item.vendorId,
+      name: item.name,
+      imageUrl: item.imageUrl ?? undefined,
+      price: item.price,
+      quantity: item.quantity,
+      total: item.total,
+    })),
+  };
+}
+
+async function getCartLines(userId: string): Promise<CartLine[]> {
+  const cartItems = await prisma.cartItem.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
+  const productIds = cartItems.map((item) => item.productId);
+  if (!productIds.length) return [];
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    include: { category: true, vendor: true },
+  });
+  const productsById = new Map(products.map((product) => [product.id, mapProduct(product)]));
+
+  return cartItems.flatMap((item) => {
+    const product = productsById.get(item.productId);
+    return product ? [{ product, quantity: item.quantity }] : [];
+  });
 }
 
 async function getSession(req: Request) {
@@ -1152,7 +1213,9 @@ app.get("/api/v1/cart", async (req, res) => {
   const user = await requireSession(req, res, startedAt, "Login is required to view your cart.");
   if (!user) return;
 
-  return success(res, { items: [] }, startedAt, { cache: "demo" });
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to view cart.", startedAt, 503);
+
+  return success(res, { items: await getCartLines(user.id) }, startedAt);
 });
 
 app.post("/api/v1/cart/add", async (req, res) => {
@@ -1160,9 +1223,26 @@ app.post("/api/v1/cart/add", async (req, res) => {
   const user = await requireSession(req, res, startedAt, "Login is required to add products to cart.");
   if (!user) return;
 
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update cart.", startedAt, 503);
+
   const parsed = cartQuantitySchema.safeParse(req.body);
   if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Product and quantity are required.", startedAt, 422);
-  return success(res, { item: parsed.data }, startedAt, { cache: "demo" });
+  const { productId, quantity } = parsed.data;
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product) return failure(res, "NOT_FOUND", "Product was not found.", startedAt, 404);
+  if (product.status !== "ACTIVE" || product.stockQuantity < 1) return failure(res, "OUT_OF_STOCK", "Product is out of stock.", startedAt, 409);
+
+  const existing = await prisma.cartItem.findUnique({ where: { userId_productId: { userId: user.id, productId } } });
+  const nextQuantity = Math.min((existing?.quantity ?? 0) + quantity, 99);
+  if (nextQuantity > product.stockQuantity) return failure(res, "STOCK_LIMIT", "Requested quantity is not available.", startedAt, 409);
+
+  await prisma.cartItem.upsert({
+    where: { userId_productId: { userId: user.id, productId } },
+    update: { quantity: nextQuantity },
+    create: { userId: user.id, productId, quantity: nextQuantity },
+  });
+
+  return success(res, { items: await getCartLines(user.id) }, startedAt);
 });
 
 app.patch("/api/v1/cart/update", async (req, res) => {
@@ -1170,9 +1250,21 @@ app.patch("/api/v1/cart/update", async (req, res) => {
   const user = await requireSession(req, res, startedAt, "Login is required to update cart.");
   if (!user) return;
 
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update cart.", startedAt, 503);
+
   const parsed = cartQuantitySchema.safeParse(req.body);
   if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Product and quantity are required.", startedAt, 422);
-  return success(res, { item: parsed.data }, startedAt, { cache: "demo" });
+  const { productId, quantity } = parsed.data;
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product) return failure(res, "NOT_FOUND", "Product was not found.", startedAt, 404);
+  if (product.status !== "ACTIVE" || product.stockQuantity < quantity) return failure(res, "STOCK_LIMIT", "Requested quantity is not available.", startedAt, 409);
+
+  await prisma.cartItem.update({
+    where: { userId_productId: { userId: user.id, productId } },
+    data: { quantity },
+  });
+
+  return success(res, { items: await getCartLines(user.id) }, startedAt);
 });
 
 app.delete("/api/v1/cart/remove", async (req, res) => {
@@ -1180,9 +1272,12 @@ app.delete("/api/v1/cart/remove", async (req, res) => {
   const user = await requireSession(req, res, startedAt, "Login is required to update cart.");
   if (!user) return;
 
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update cart.", startedAt, 503);
+
   const { productId } = req.body;
   if (!productId) return failure(res, "VALIDATION_ERROR", "Product is required.", startedAt, 422);
-  return success(res, { productId }, startedAt, { cache: "demo" });
+  await prisma.cartItem.deleteMany({ where: { userId: user.id, productId: String(productId) } });
+  return success(res, { items: await getCartLines(user.id) }, startedAt);
 });
 
 app.post("/api/v1/cart/clear", async (req, res) => {
@@ -1190,7 +1285,31 @@ app.post("/api/v1/cart/clear", async (req, res) => {
   const user = await requireSession(req, res, startedAt, "Login is required to update cart.");
   if (!user) return;
 
-  return success(res, { cleared: true }, startedAt, { cache: "demo" });
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update cart.", startedAt, 503);
+
+  await prisma.cartItem.deleteMany({ where: { userId: user.id } });
+  return success(res, { items: [] }, startedAt);
+});
+
+app.get("/api/v1/orders", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to view orders.");
+  if (!user) return;
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to view orders.", startedAt, 503);
+
+  const orders = await prisma.order.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });
+  return success(res, { items: orders.map(mapOrderSummary), nextCursor: null }, startedAt);
+});
+
+app.get("/api/v1/orders/:id", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to view orders.");
+  if (!user) return;
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to view orders.", startedAt, 503);
+
+  const order = await prisma.order.findFirst({ where: { id: req.params.id, userId: user.id } });
+  if (!order) return failure(res, "NOT_FOUND", "Order was not found.", startedAt, 404);
+  return success(res, mapOrderDetail(order), startedAt);
 });
 
 app.post("/api/v1/orders", async (req, res) => {
@@ -1198,21 +1317,90 @@ app.post("/api/v1/orders", async (req, res) => {
   const user = await requireSession(req, res, startedAt, "Login is required to create an order.");
   if (!user) return;
 
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to create orders.", startedAt, 503);
+
   const parsed = orderSchema.safeParse(req.body);
   if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Shipping address and payment method are required.", startedAt, 422);
 
-  return success(
-    res,
-    {
-      id: crypto.randomUUID(),
-      userId: user.id,
-      status: "PENDING",
-      paymentMethod: parsed.data.paymentMethod,
-      shippingAddress: parsed.data.shippingAddress,
-    },
-    startedAt,
-    { cache: "demo" },
-  );
+  const cartItems = await prisma.cartItem.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
+  if (!cartItems.length) return failure(res, "EMPTY_CART", "Your cart is empty.", startedAt, 422);
+
+  const productIds = cartItems.map((item) => item.productId);
+  const products = await prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true, vendor: true } });
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  for (const item of cartItems) {
+    const product = productsById.get(item.productId);
+    if (!product) return failure(res, "NOT_FOUND", "A product in your cart was not found.", startedAt, 404);
+    if (product.status !== "ACTIVE" || product.stockQuantity < item.quantity) {
+      return failure(res, "STOCK_LIMIT", `${product.name} does not have enough stock.`, startedAt, 409);
+    }
+  }
+
+  let order: OrderRecord;
+  try {
+    order = await prisma.$transaction(async (tx) => {
+    const freshProducts = await tx.product.findMany({ where: { id: { in: productIds } } });
+    const freshById = new Map(freshProducts.map((product) => [product.id, product]));
+    for (const item of cartItems) {
+      const product = freshById.get(item.productId);
+      if (!product || product.status !== "ACTIVE" || product.stockQuantity < item.quantity) {
+        throw new Error("STOCK_LIMIT");
+      }
+    }
+
+    await Promise.all(
+      cartItems.map((item) => {
+        const product = freshById.get(item.productId)!;
+        const nextStock = product.stockQuantity - item.quantity;
+        return tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: nextStock,
+            status: nextStock > 0 ? "ACTIVE" : "OUT_OF_STOCK",
+          },
+        });
+      }),
+    );
+
+    const items = cartItems.map((item) => {
+      const product = productsById.get(item.productId)!;
+      return {
+        productId: product.id,
+        vendorId: product.vendorId,
+        name: product.name,
+        imageUrl: product.images[0] ?? null,
+        price: product.price,
+        quantity: item.quantity,
+        total: product.price * item.quantity,
+      };
+    });
+    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+
+    const created = await tx.order.create({
+      data: {
+        userId: user.id,
+        status: "PENDING",
+        subtotal,
+        shippingAmount: 0,
+        discountAmount: 0,
+        total: subtotal,
+        paymentMethod: parsed.data.paymentMethod,
+        paymentStatus: "PENDING",
+        shippingAddress: parsed.data.shippingAddress,
+        items,
+      },
+    });
+    await tx.cartItem.deleteMany({ where: { userId: user.id } });
+    return created;
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "STOCK_LIMIT") {
+      return failure(res, "STOCK_LIMIT", "One or more products no longer have enough stock.", startedAt, 409);
+    }
+    throw error;
+  }
+
+  return success(res, mapOrderDetail(order), startedAt, { status: 201 });
 });
 
 app.get("/api/v1/posts/:id/comments", (req, res) => {
@@ -1289,6 +1477,65 @@ app.get("/api/v1/dashboard/stats", async (req, res) => {
     },
     startedAt,
   );
+});
+
+app.get("/api/v1/dashboard/orders", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to view dashboard orders.");
+  if (!user) return;
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && user.role !== "VENDOR") return failure(res, "FORBIDDEN", "Dashboard access is not available for this user.", startedAt, 403);
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to view orders.", startedAt, 503);
+
+  const orders = await prisma.order.findMany({
+    where: isAdmin ? undefined : { items: { some: { vendorId: user.id } } },
+    orderBy: { createdAt: "desc" },
+  });
+  return success(res, { items: orders.map(mapOrderSummary), nextCursor: null }, startedAt);
+});
+
+app.get("/api/v1/dashboard/orders/:id", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to view dashboard orders.");
+  if (!user) return;
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && user.role !== "VENDOR") return failure(res, "FORBIDDEN", "Dashboard access is not available for this user.", startedAt, 403);
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to view orders.", startedAt, 503);
+
+  const order = await prisma.order.findFirst({
+    where: {
+      id: req.params.id,
+      ...(isAdmin ? {} : { items: { some: { vendorId: user.id } } }),
+    },
+  });
+  if (!order) return failure(res, "NOT_FOUND", "Order was not found.", startedAt, 404);
+  return success(res, mapOrderDetail(order), startedAt);
+});
+
+app.patch("/api/v1/dashboard/orders/:id/status", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to update orders.");
+  if (!user) return;
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && user.role !== "VENDOR") return failure(res, "FORBIDDEN", "Dashboard access is not available for this user.", startedAt, 403);
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update orders.", startedAt, 503);
+
+  const parsed = orderStatusSchema.safeParse(req.body);
+  if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Choose a valid order status.", startedAt, 422);
+
+  const existing = await prisma.order.findFirst({
+    where: {
+      id: req.params.id,
+      ...(isAdmin ? {} : { items: { some: { vendorId: user.id } } }),
+    },
+  });
+  if (!existing) return failure(res, "NOT_FOUND", "Order was not found.", startedAt, 404);
+
+  const order = await prisma.order.update({
+    where: { id: existing.id },
+    data: { status: parsed.data.status },
+  });
+  return success(res, mapOrderDetail(order), startedAt);
 });
 
 app.get("/api/v1/dashboard/products", async (req, res) => {

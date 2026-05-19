@@ -77,7 +77,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
   const initialPayload = useMemo(() => toPayload(user), [user]);
-  const [activeTab, setActiveTab] = useState<"profile" | "security" | "preview">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
   const [savedForm, setSavedForm] = useState<SettingsPayload>(initialPayload);
   const [form, setForm] = useState<SettingsPayload>(initialPayload);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -101,7 +101,6 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
   const tabs = [
     { key: "profile" as const, label: "Profile", icon: Sparkles, hint: isDirty ? "Unsaved" : "Saved" },
     { key: "security" as const, label: "Security", icon: KeyRound, hint: passwordStatus === "saved" ? "Updated" : passwordStatus === "error" ? "Check" : "Password" },
-    { key: "preview" as const, label: "Preview", icon: Eye, hint: `${completion}%` },
   ];
 
   function updateField(field: keyof SettingsPayload, value: string) {
@@ -200,7 +199,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
 
   return (
     <div className="grid gap-5">
-      <div className="grid grid-cols-3 gap-2 rounded-lg border border-zinc-200 bg-white p-2">
+      <div className="grid grid-cols-2 gap-2 rounded-lg border border-zinc-200 bg-white p-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -225,48 +224,116 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
       </div>
 
       {activeTab === "profile" ? (
-        <div className="rounded-lg border border-zinc-200 bg-white p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-5 text-[#d62976]" />
-                <h2 className="text-xl font-black">{title}</h2>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="rounded-lg border border-zinc-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="size-5 text-[#d62976]" />
+                  <h2 className="text-xl font-black">{title}</h2>
+                </div>
+                <p className="mt-1 text-sm font-medium text-zinc-500">{subtitle}</p>
               </div>
-              <p className="mt-1 text-sm font-medium text-zinc-500">{subtitle}</p>
+              <span className={cn("rounded px-2 py-1 text-xs font-black", isDirty ? "bg-yellow-50 text-yellow-700" : "bg-emerald-50 text-emerald-700")}>
+                {isDirty ? "Unsaved changes" : "Up to date"}
+              </span>
             </div>
-            <span className={cn("rounded px-2 py-1 text-xs font-black", isDirty ? "bg-yellow-50 text-yellow-700" : "bg-emerald-50 text-emerald-700")}>
-              {isDirty ? "Unsaved changes" : "Up to date"}
-            </span>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <TextInput label="Name" value={form.name} onChange={(event) => updateField("name", event.target.value)} />
+              <TextInput label="Username" value={form.username} onChange={(event) => updateField("username", event.target.value)} />
+              <TextInput label="Email" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} />
+              <TextInput label="Phone" value={form.phone} onChange={(event) => updateField("phone", event.target.value)} />
+              <label className="grid gap-2 text-sm font-semibold text-zinc-900 md:col-span-2">
+                Bio
+                <textarea
+                  className="min-h-28 resize-y rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base font-medium outline-none transition placeholder:text-zinc-400 focus:border-zinc-900"
+                  maxLength={240}
+                  value={form.bio}
+                  onChange={(event) => updateField("bio", event.target.value)}
+                />
+                <span className="text-xs font-medium text-zinc-500">{form.bio.length}/240 characters</span>
+              </label>
+            </div>
+
+            {profileMessage ? (
+              <p className={cn("mt-4 rounded-lg p-3 text-sm font-bold", profileStatus === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>{profileMessage}</p>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button icon={<Save className="size-4" />} loading={profileStatus === "saving"} disabled={!isDirty || profileStatus === "saving"} onClick={saveProfile}>
+                Save Changes
+              </Button>
+              <Button intent="secondary" icon={<RefreshCcw className="size-4" />} disabled={!isDirty || profileStatus === "saving"} onClick={() => setForm(savedForm)}>
+                Reset
+              </Button>
+            </div>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <TextInput label="Name" value={form.name} onChange={(event) => updateField("name", event.target.value)} />
-            <TextInput label="Username" value={form.username} onChange={(event) => updateField("username", event.target.value)} />
-            <TextInput label="Email" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} />
-            <TextInput label="Phone" value={form.phone} onChange={(event) => updateField("phone", event.target.value)} />
-            <label className="grid gap-2 text-sm font-semibold text-zinc-900 md:col-span-2">
-              Bio
-              <textarea
-                className="min-h-28 resize-y rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base font-medium outline-none transition placeholder:text-zinc-400 focus:border-zinc-900"
-                maxLength={240}
-                value={form.bio}
-                onChange={(event) => updateField("bio", event.target.value)}
-              />
-              <span className="text-xs font-medium text-zinc-500">{form.bio.length}/240 characters</span>
-            </label>
-          </div>
+          <div className="grid gap-5">
+            <section className="rounded-lg border border-zinc-200 bg-white p-5">
+              <div className="flex items-center gap-2">
+                <Eye className="size-5 text-zinc-500" />
+                <h2 className="text-xl font-black">Live Preview</h2>
+              </div>
+              <div className="mt-5 rounded-lg border border-zinc-100 bg-zinc-50 p-4">
+                <div className="flex items-center gap-3">
+                  <label className="group relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-zinc-200 text-base font-black text-zinc-500 ring-4 ring-white transition hover:ring-[#fff1f7]">
+                    {previewImageUrl ? <Image src={previewImageUrl} alt={form.username} fill sizes="80px" className="object-cover" unoptimized /> : form.username.slice(0, 2).toUpperCase()}
+                    <span className="absolute inset-0 grid place-items-center bg-black/0 text-white transition group-hover:bg-black/45">
+                      <span className="grid size-9 place-items-center rounded-full bg-black/65 opacity-0 transition group-hover:opacity-100">
+                        <Camera className="size-5" />
+                      </span>
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      disabled={avatarStatus === "uploading"}
+                      onChange={(event) => {
+                        void uploadAvatar(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-black">{form.name || "Your name"}</p>
+                    <p className="truncate text-sm font-bold text-zinc-500">@{form.username || "username"}</p>
+                    <p className="mt-1 inline-flex rounded bg-[#fff1f7] px-2 py-1 text-xs font-black text-[#d62976]">{user.role}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm font-medium leading-6 text-zinc-600">{form.bio || "Add a short bio so customers and creators know what makes this profile distinct."}</p>
+                <p className="mt-3 text-xs font-bold text-zinc-500">
+                  {avatarStatus === "uploading" ? "Uploading profile image..." : "Click the display picture to upload JPG, PNG, or WebP up to 5 MB."}
+                </p>
+                {avatarMessage ? (
+                  <p className={cn("mt-3 rounded-lg p-3 text-sm font-bold", avatarStatus === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>{avatarMessage}</p>
+                ) : null}
+              </div>
+            </section>
 
-          {profileMessage ? (
-            <p className={cn("mt-4 rounded-lg p-3 text-sm font-bold", profileStatus === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>{profileMessage}</p>
-          ) : null}
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button icon={<Save className="size-4" />} loading={profileStatus === "saving"} disabled={!isDirty || profileStatus === "saving"} onClick={saveProfile}>
-              Save Changes
-            </Button>
-            <Button intent="secondary" icon={<RefreshCcw className="size-4" />} disabled={!isDirty || profileStatus === "saving"} onClick={() => setForm(savedForm)}>
-              Reset
-            </Button>
+            <section className="rounded-lg border border-zinc-200 bg-white p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-black">Completion</h2>
+                <span className="text-2xl font-black text-[#1768d8]">{completion}%</span>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-100">
+                <div className="h-full rounded-full bg-[#1768d8]" style={{ width: `${completion}%` }} />
+              </div>
+              <div className="mt-4 grid gap-2 text-sm font-bold text-zinc-600">
+                {[
+                  ["Profile identity", Boolean(form.name && form.username)],
+                  ["Reachable contact", Boolean(form.email || form.phone)],
+                  ["Visual avatar", Boolean(form.avatarUrl)],
+                  ["Bio context", Boolean(form.bio)],
+                ].map(([label, done]) => (
+                  <div key={String(label)} className="flex items-center gap-2">
+                    <CheckCircle2 className={cn("size-4", done ? "text-emerald-600" : "text-zinc-300")} />
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         </div>
       ) : null}
@@ -306,73 +373,6 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
         </div>
       ) : null}
 
-      {activeTab === "preview" ? (
-        <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <section className="rounded-lg border border-zinc-200 bg-white p-5">
-          <div className="flex items-center gap-2">
-            <Eye className="size-5 text-zinc-500" />
-            <h2 className="text-xl font-black">Live Preview</h2>
-          </div>
-          <div className="mt-5 rounded-lg border border-zinc-100 bg-zinc-50 p-4">
-            <div className="flex items-center gap-3">
-              <label className="group relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-zinc-200 text-base font-black text-zinc-500 ring-4 ring-white transition hover:ring-[#fff1f7]">
-                {previewImageUrl ? <Image src={previewImageUrl} alt={form.username} fill sizes="80px" className="object-cover" unoptimized /> : form.username.slice(0, 2).toUpperCase()}
-                <span className="absolute inset-0 grid place-items-center bg-black/0 text-white transition group-hover:bg-black/45">
-                  <span className="grid size-9 place-items-center rounded-full bg-black/65 opacity-0 transition group-hover:opacity-100">
-                    <Camera className="size-5" />
-                  </span>
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  disabled={avatarStatus === "uploading"}
-                  onChange={(event) => {
-                    void uploadAvatar(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-              <div className="min-w-0">
-                <p className="truncate text-lg font-black">{form.name || "Your name"}</p>
-                <p className="truncate text-sm font-bold text-zinc-500">@{form.username || "username"}</p>
-                <p className="mt-1 inline-flex rounded bg-[#fff1f7] px-2 py-1 text-xs font-black text-[#d62976]">{user.role}</p>
-              </div>
-            </div>
-            <p className="mt-4 text-sm font-medium leading-6 text-zinc-600">{form.bio || "Add a short bio so customers and creators know what makes this profile distinct."}</p>
-            <p className="mt-3 text-xs font-bold text-zinc-500">
-              {avatarStatus === "uploading" ? "Uploading profile image..." : "Click the display picture to upload JPG, PNG, or WebP up to 5 MB."}
-            </p>
-            {avatarMessage ? (
-              <p className={cn("mt-3 rounded-lg p-3 text-sm font-bold", avatarStatus === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>{avatarMessage}</p>
-            ) : null}
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-zinc-200 bg-white p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black">Completion</h2>
-            <span className="text-2xl font-black text-[#1768d8]">{completion}%</span>
-          </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-100">
-            <div className="h-full rounded-full bg-[#1768d8]" style={{ width: `${completion}%` }} />
-          </div>
-          <div className="mt-4 grid gap-2 text-sm font-bold text-zinc-600">
-            {[
-              ["Profile identity", Boolean(form.name && form.username)],
-              ["Reachable contact", Boolean(form.email || form.phone)],
-              ["Visual avatar", Boolean(form.avatarUrl)],
-              ["Bio context", Boolean(form.bio)],
-            ].map(([label, done]) => (
-              <div key={String(label)} className="flex items-center gap-2">
-                <CheckCircle2 className={cn("size-4", done ? "text-emerald-600" : "text-zinc-300")} />
-                <span>{label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -8,12 +8,14 @@ import { useCartStore } from "@/store/use-cart-store";
 
 export function AppProvider({ children, user }: { children: ReactNode; user: SessionUser | null }) {
   const setUser = useAuthStore((state) => state.setUser);
-  const clearCart = useCartStore((state) => state.clearCart);
+  const loadCart = useCartStore((state) => state.loadCart);
+  const resetCart = useCartStore((state) => state.resetCart);
 
   useEffect(() => {
     setUser(user);
-    if (!user) clearCart();
-  }, [clearCart, setUser, user]);
+    if (user) void loadCart();
+    else resetCart();
+  }, [loadCart, resetCart, setUser, user]);
 
   return children;
 }

@@ -8,12 +8,12 @@ import { useCartStore } from "@/store/use-cart-store";
 export function LogoutButton() {
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
-  const clearCart = useCartStore((state) => state.clearCart);
+  const resetCart = useCartStore((state) => state.resetCart);
 
   async function logout() {
     await fetch("/api/v1/auth/logout", { method: "POST" });
     setUser(null);
-    clearCart();
+    resetCart();
     router.push("/");
     router.refresh();
   }

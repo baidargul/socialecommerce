@@ -12,6 +12,7 @@ import { useCartStore } from "@/store/use-cart-store";
 export function ProductCard({ product }: { product: Product }) {
   const { requireAuth } = useAuthGuard();
   const addProduct = useCartStore((state) => state.addProduct);
+  const loading = useCartStore((state) => state.loading);
   const image = product.images[0];
 
   return (
@@ -34,10 +35,11 @@ export function ProductCard({ product }: { product: Product }) {
         <Button
           className="mt-3 min-h-10 w-full px-3"
           icon={<ShoppingBag className="size-4" />}
-          disabled={product.status === "OUT_OF_STOCK"}
-          onClick={() => {
+          disabled={product.status === "OUT_OF_STOCK" || loading}
+          loading={loading}
+          onClick={async () => {
             if (!requireAuth()) return;
-            addProduct(product);
+            await addProduct(product);
           }}
         >
           {product.status === "OUT_OF_STOCK" ? "Sold Out" : "Add"}
