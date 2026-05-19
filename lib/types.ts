@@ -76,6 +76,20 @@ export type Address = {
   postalCode?: string;
 };
 
+export type AddressInput = Address & {
+  label?: string;
+  isDefault?: boolean;
+};
+
+export type UserAddress = Address & {
+  id: string;
+  userId: string;
+  label?: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type OrderItem = {
   productId: string;
   vendorId: string;
@@ -109,7 +123,9 @@ export type OrderDetail = OrderSummary & {
 
 export type CheckoutInput = {
   paymentMethod: "COD";
-  shippingAddress: Address;
+  addressId?: string;
+  shippingAddress?: Address;
+  saveAddress?: boolean;
 };
 
 export type CategoryItem = {

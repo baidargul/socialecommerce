@@ -11,6 +11,7 @@ import { canUseDatabase, prisma } from "../lib/prisma";
 import { demoComments, demoPosts, demoProducts, demoStories, demoUsers } from "../lib/demo-data";
 import {
   accountSettingsSchema,
+  addressSchema,
   cartQuantitySchema,
   categoryCreateSchema,
   commentSchema,
@@ -22,7 +23,7 @@ import {
   productCreateSchema,
   signupSchema,
 } from "../lib/validation/schemas";
-import type { CartLine, CategoryItem, DemoUser, FeedPost, OrderDetail, OrderSummary, Product, Story } from "../lib/types";
+import type { Address, CartLine, CategoryItem, DemoUser, FeedPost, OrderDetail, OrderSummary, Product, Story, UserAddress } from "../lib/types";
 
 const app = express();
 const port = Number(process.env.BACKEND_PORT ?? 4000);
@@ -108,6 +109,7 @@ type CategoryWithCount = Prisma.CategoryGetPayload<{
 }>;
 
 type OrderRecord = Prisma.OrderGetPayload<Record<string, never>>;
+type UserAddressRecord = Prisma.UserAddressGetPayload<Record<string, never>>;
 
 app.use(cors({ origin: frontendOrigin, credentials: true }));
 app.use(express.json());
@@ -311,6 +313,60 @@ function mapOrderDetail(order: OrderRecord): OrderDetail {
       quantity: item.quantity,
       total: item.total,
     })),
+  };
+}
+
+function mapUserAddress(address: UserAddressRecord): UserAddress {
+  return {
+    id: address.id,
+    userId: address.userId,
+    label: address.label ?? undefined,
+    fullName: address.fullName,
+    phone: address.phone,
+    addressLine: address.addressLine,
+    city: address.city,
+    state: address.state ?? undefined,
+    country: address.country,
+    postalCode: address.postalCode ?? undefined,
+    isDefault: address.isDefault,
+    createdAt: address.createdAt.toISOString(),
+    updatedAt: address.updatedAt.toISOString(),
+  };
+}
+
+function toShippingAddress(address: UserAddressRecord): Address {
+  return {
+    fullName: address.fullName,
+    phone: address.phone,
+    addressLine: address.addressLine,
+    city: address.city,
+    state: address.state ?? undefined,
+    country: address.country,
+    postalCode: address.postalCode ?? undefined,
+  };
+}
+
+function cleanAddressInput(input: {
+  label?: string;
+  fullName: string;
+  phone: string;
+  addressLine: string;
+  city: string;
+  state?: string;
+  country: string;
+  postalCode?: string;
+  isDefault?: boolean;
+}) {
+  return {
+    label: input.label || null,
+    fullName: input.fullName,
+    phone: input.phone,
+    addressLine: input.addressLine,
+    city: input.city,
+    state: input.state || null,
+    country: input.country,
+    postalCode: input.postalCode || null,
+    isDefault: Boolean(input.isDefault),
   };
 }
 
@@ -625,6 +681,96 @@ app.patch("/api/v1/account/settings", async (req, res) => {
     },
     startedAt,
   );
+});
+
+app.get("/api/v1/account/addresses", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to view addresses.");
+  if (!user) return;
+
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to view saved addresses.", startedAt, 503);
+
+  const addresses = await prisma.userAddress.findMany({
+    where: { userId: user.id },
+    orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+  });
+  return success(res, { items: addresses.map(mapUserAddress), nextCursor: null }, startedAt);
+});
+
+app.post("/api/v1/account/addresses", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to save addresses.");
+  if (!user) return;
+
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to save addresses.", startedAt, 503);
+
+  const parsed = addressSchema.safeParse(req.body);
+  if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Please enter a valid address.", startedAt, 422);
+
+  const existingCount = await prisma.userAddress.count({ where: { userId: user.id } });
+  const shouldBeDefault = Boolean(parsed.data.isDefault) || existingCount === 0;
+  if (shouldBeDefault) await prisma.userAddress.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
+
+  const address = await prisma.userAddress.create({
+    data: {
+      userId: user.id,
+      ...cleanAddressInput({ ...parsed.data, isDefault: shouldBeDefault }),
+    },
+  });
+  return success(res, { address: mapUserAddress(address) }, startedAt, { status: 201 });
+});
+
+app.patch("/api/v1/account/addresses/:id/default", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to update addresses.");
+  if (!user) return;
+
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update addresses.", startedAt, 503);
+
+  const existing = await prisma.userAddress.findFirst({ where: { id: req.params.id, userId: user.id } });
+  if (!existing) return failure(res, "NOT_FOUND", "Address was not found.", startedAt, 404);
+
+  await prisma.userAddress.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
+  const address = await prisma.userAddress.update({
+    where: { id: existing.id },
+    data: { isDefault: true },
+  });
+  return success(res, { address: mapUserAddress(address) }, startedAt);
+});
+
+app.patch("/api/v1/account/addresses/:id", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to update addresses.");
+  if (!user) return;
+
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to update addresses.", startedAt, 503);
+
+  const parsed = addressSchema.safeParse(req.body);
+  if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Please enter a valid address.", startedAt, 422);
+
+  const existing = await prisma.userAddress.findFirst({ where: { id: req.params.id, userId: user.id } });
+  if (!existing) return failure(res, "NOT_FOUND", "Address was not found.", startedAt, 404);
+
+  if (parsed.data.isDefault) await prisma.userAddress.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
+  const address = await prisma.userAddress.update({
+    where: { id: existing.id },
+    data: cleanAddressInput({ ...parsed.data, isDefault: parsed.data.isDefault ?? existing.isDefault }),
+  });
+  return success(res, { address: mapUserAddress(address) }, startedAt);
+});
+
+app.delete("/api/v1/account/addresses/:id", async (req, res) => {
+  const startedAt = Date.now();
+  const user = await requireSession(req, res, startedAt, "Login is required to delete addresses.");
+  if (!user) return;
+
+  if (!canUseDatabase()) return failure(res, "DATABASE_UNAVAILABLE", "Database is required to delete addresses.", startedAt, 503);
+
+  const existing = await prisma.userAddress.findFirst({ where: { id: req.params.id, userId: user.id } });
+  if (!existing) return failure(res, "NOT_FOUND", "Address was not found.", startedAt, 404);
+
+  await prisma.userAddress.delete({ where: { id: existing.id } });
+  return success(res, { ok: true }, startedAt);
 });
 
 app.post("/api/v1/account/avatar", profileUpload.single("avatar"), async (req, res) => {
@@ -1322,6 +1468,14 @@ app.post("/api/v1/orders", async (req, res) => {
   const parsed = orderSchema.safeParse(req.body);
   if (!parsed.success) return failure(res, "VALIDATION_ERROR", "Shipping address and payment method are required.", startedAt, 422);
 
+  let shippingAddress = parsed.data.shippingAddress;
+  if (parsed.data.addressId) {
+    const savedAddress = await prisma.userAddress.findFirst({ where: { id: parsed.data.addressId, userId: user.id } });
+    if (!savedAddress) return failure(res, "NOT_FOUND", "Saved address was not found.", startedAt, 404);
+    shippingAddress = toShippingAddress(savedAddress);
+  }
+  if (!shippingAddress) return failure(res, "VALIDATION_ERROR", "Choose a saved address or enter a shipping address.", startedAt, 422);
+
   const cartItems = await prisma.cartItem.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
   if (!cartItems.length) return failure(res, "EMPTY_CART", "Your cart is empty.", startedAt, 422);
 
@@ -1386,10 +1540,28 @@ app.post("/api/v1/orders", async (req, res) => {
         total: subtotal,
         paymentMethod: parsed.data.paymentMethod,
         paymentStatus: "PENDING",
-        shippingAddress: parsed.data.shippingAddress,
+        shippingAddress,
         items,
       },
     });
+    if (parsed.data.saveAddress && !parsed.data.addressId) {
+      const existingAddressCount = await tx.userAddress.count({ where: { userId: user.id } });
+      const isDefault = existingAddressCount === 0;
+      await tx.userAddress.create({
+        data: {
+          userId: user.id,
+          label: "Shipping",
+          fullName: shippingAddress.fullName,
+          phone: shippingAddress.phone,
+          addressLine: shippingAddress.addressLine,
+          city: shippingAddress.city,
+          state: shippingAddress.state || null,
+          country: shippingAddress.country,
+          postalCode: shippingAddress.postalCode || null,
+          isDefault,
+        },
+      });
+    }
     await tx.cartItem.deleteMany({ where: { userId: user.id } });
     return created;
     });

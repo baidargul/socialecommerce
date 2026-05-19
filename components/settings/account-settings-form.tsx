@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Camera, CheckCircle2, Eye, KeyRound, RefreshCcw, Save, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, CheckCircle2, Eye, KeyRound, MapPin, RefreshCcw, Save, ShieldCheck, Sparkles } from "lucide-react";
 import type { SessionUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/use-auth-store";
+import { AddressBookManager } from "@/components/settings/address-book-manager";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/input";
 
@@ -77,7 +78,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
   const initialPayload = useMemo(() => toPayload(user), [user]);
-  const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "security" | "addresses">("profile");
   const [savedForm, setSavedForm] = useState<SettingsPayload>(initialPayload);
   const [form, setForm] = useState<SettingsPayload>(initialPayload);
   const [profileStatus, setProfileStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -101,6 +102,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
   const tabs = [
     { key: "profile" as const, label: "Profile", icon: Sparkles, hint: isDirty ? "Unsaved" : "Saved" },
     { key: "security" as const, label: "Security", icon: KeyRound, hint: passwordStatus === "saved" ? "Updated" : passwordStatus === "error" ? "Check" : "Password" },
+    { key: "addresses" as const, label: "Addresses", icon: MapPin, hint: "Checkout" },
   ];
 
   function updateField(field: keyof SettingsPayload, value: string) {
@@ -199,7 +201,7 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
 
   return (
     <div className="grid gap-5">
-      <div className="grid grid-cols-2 gap-2 rounded-lg border border-zinc-200 bg-white p-2">
+      <div className="grid grid-cols-3 gap-2 rounded-lg border border-zinc-200 bg-white p-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -372,6 +374,8 @@ export function AccountSettingsForm({ user, variant }: AccountSettingsFormProps)
           </Button>
         </div>
       ) : null}
+
+      {activeTab === "addresses" ? <AddressBookManager /> : null}
 
     </div>
   );

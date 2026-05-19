@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
@@ -10,13 +10,19 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { TextInput } from "@/components/ui/input";
-import type { OrderDetail } from "@/lib/types";
+import type { OrderDetail, UserAddress } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { useCartStore } from "@/store/use-cart-store";
 
 type OrderResponse = {
   success: boolean;
   data: OrderDetail | null;
+  error: { message: string } | null;
+};
+
+type AddressResponse = {
+  success: boolean;
+  data: { items: UserAddress[]; nextCursor: null } | null;
   error: { message: string } | null;
 };
 
@@ -34,6 +40,11 @@ export function CartView() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [useManualAddress, setUseManualAddress] = useState(true);
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(false);
   const [shippingAddress, setShippingAddress] = useState({
     fullName: "",
     phone: "",
@@ -48,6 +59,37 @@ export function CartView() {
     setShippingAddress((current) => ({ ...current, [field]: value }));
   }
 
+  useEffect(() => {
+    if (!showCheckout) return;
+
+    async function loadAddresses() {
+      setAddressLoading(true);
+      try {
+        const response = await fetch("/api/v1/account/addresses");
+        const contentType = response.headers.get("content-type") ?? "";
+        const body = contentType.includes("application/json") ? ((await response.json()) as AddressResponse) : null;
+        if (!response.ok || !body?.success || !body.data) {
+          setSavedAddresses([]);
+          setUseManualAddress(true);
+          return;
+        }
+
+        setSavedAddresses(body.data.items);
+        const defaultAddress = body.data.items.find((address) => address.isDefault) ?? body.data.items[0];
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id);
+          setUseManualAddress(false);
+        } else {
+          setUseManualAddress(true);
+        }
+      } finally {
+        setAddressLoading(false);
+      }
+    }
+
+    void loadAddresses();
+  }, [showCheckout]);
+
   async function placeOrder() {
     if (!requireAuth("/cart")) return;
     setPlacingOrder(true);
@@ -56,7 +98,11 @@ export function CartView() {
       const response = await fetch("/api/v1/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethod: "COD", shippingAddress }),
+        body: JSON.stringify(
+          useManualAddress
+            ? { paymentMethod: "COD", shippingAddress, saveAddress }
+            : { paymentMethod: "COD", addressId: selectedAddressId },
+        ),
       });
       const contentType = response.headers.get("content-type") ?? "";
       const body = contentType.includes("application/json") ? ((await response.json()) as OrderResponse) : null;
@@ -168,19 +214,59 @@ export function CartView() {
         <section className="mt-5 rounded-lg border border-zinc-100 bg-white p-5">
           <h2 className="text-2xl font-black">Shipping</h2>
           <p className="mt-1 text-sm font-bold text-zinc-500">Payment method: Cash on delivery</p>
-          <div className="mt-5 grid gap-4">
-            <TextInput label="Full name" value={shippingAddress.fullName} onChange={(event) => updateAddress("fullName", event.target.value)} />
-            <TextInput label="Phone" value={shippingAddress.phone} onChange={(event) => updateAddress("phone", event.target.value)} />
-            <TextInput label="Address" value={shippingAddress.addressLine} onChange={(event) => updateAddress("addressLine", event.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <TextInput label="City" value={shippingAddress.city} onChange={(event) => updateAddress("city", event.target.value)} />
-              <TextInput label="State" value={shippingAddress.state} onChange={(event) => updateAddress("state", event.target.value)} />
+          {addressLoading ? <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm font-bold text-zinc-500">Loading saved addresses...</p> : null}
+          {savedAddresses.length ? (
+            <div className="mt-5 grid gap-3">
+              <p className="text-sm font-black">Saved addresses</p>
+              {savedAddresses.map((address) => (
+                <label
+                  key={address.id}
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
+                    !useManualAddress && selectedAddressId === address.id ? "border-[#d62976] bg-[#fff1f7]" : "border-zinc-100"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="checkout-address"
+                    checked={!useManualAddress && selectedAddressId === address.id}
+                    onChange={() => {
+                      setSelectedAddressId(address.id);
+                      setUseManualAddress(false);
+                    }}
+                  />
+                  <span>
+                    <span className="font-black">{address.label || "Address"} {address.isDefault ? "(Default)" : ""}</span>
+                    <span className="mt-1 block font-medium text-zinc-600">
+                      {address.fullName}, {address.addressLine}, {address.city}, {address.country}
+                    </span>
+                  </span>
+                </label>
+              ))}
+              <label className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${useManualAddress ? "border-[#1768d8] bg-blue-50" : "border-zinc-100"}`}>
+                <input type="radio" name="checkout-address" checked={useManualAddress} onChange={() => setUseManualAddress(true)} />
+                <span className="font-black">Enter new address</span>
+              </label>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <TextInput label="Country" value={shippingAddress.country} onChange={(event) => updateAddress("country", event.target.value)} />
-              <TextInput label="Postal code" value={shippingAddress.postalCode} onChange={(event) => updateAddress("postalCode", event.target.value)} />
+          ) : null}
+          {useManualAddress ? (
+            <div className="mt-5 grid gap-4">
+              <TextInput label="Full name" value={shippingAddress.fullName} onChange={(event) => updateAddress("fullName", event.target.value)} />
+              <TextInput label="Phone" value={shippingAddress.phone} onChange={(event) => updateAddress("phone", event.target.value)} />
+              <TextInput label="Address" value={shippingAddress.addressLine} onChange={(event) => updateAddress("addressLine", event.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <TextInput label="City" value={shippingAddress.city} onChange={(event) => updateAddress("city", event.target.value)} />
+                <TextInput label="State" value={shippingAddress.state} onChange={(event) => updateAddress("state", event.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <TextInput label="Country" value={shippingAddress.country} onChange={(event) => updateAddress("country", event.target.value)} />
+                <TextInput label="Postal code" value={shippingAddress.postalCode} onChange={(event) => updateAddress("postalCode", event.target.value)} />
+              </div>
+              <label className="flex items-center gap-2 text-sm font-bold text-zinc-700">
+                <input type="checkbox" checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />
+                Save this address for next time
+              </label>
             </div>
-          </div>
+          ) : null}
           {checkoutError ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{checkoutError}</p> : null}
           <Button className="mt-5 w-full text-lg" loading={placingOrder} onClick={placeOrder}>Place COD Order</Button>
         </section>

@@ -40,17 +40,28 @@ export const cartQuantitySchema = z.object({
   quantity: z.coerce.number().int().min(1).max(99).default(1),
 });
 
+export const addressSchema = z.object({
+  label: z.string().max(40).optional().or(z.literal("")),
+  fullName: z.string().min(2).max(80),
+  phone: z.string().min(7).max(30),
+  addressLine: z.string().min(5).max(180),
+  city: z.string().min(2).max(80),
+  state: z.string().max(80).optional().or(z.literal("")),
+  country: z.string().min(2).max(80),
+  postalCode: z.string().max(30).optional().or(z.literal("")),
+  isDefault: z.boolean().optional(),
+});
+
+const shippingAddressSchema = addressSchema.omit({ label: true, isDefault: true });
+
 export const orderSchema = z.object({
   paymentMethod: z.literal("COD"),
-  shippingAddress: z.object({
-    fullName: z.string().min(2),
-    phone: z.string().min(7),
-    addressLine: z.string().min(5),
-    city: z.string().min(2),
-    state: z.string().optional(),
-    country: z.string().min(2),
-    postalCode: z.string().optional(),
-  }),
+  addressId: z.string().min(1).optional(),
+  shippingAddress: shippingAddressSchema.optional(),
+  saveAddress: z.boolean().optional(),
+}).refine((input) => Boolean(input.addressId || input.shippingAddress), {
+  message: "Choose a saved address or enter a shipping address.",
+  path: ["shippingAddress"],
 });
 
 export const orderStatusSchema = z.object({
