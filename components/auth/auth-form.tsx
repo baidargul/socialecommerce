@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/ui/input";
 import type { SessionUser } from "@/lib/auth/session";
+import { getApiUrl } from "@/lib/api-url";
 import { useAuthStore } from "@/store/use-auth-store";
 
 type AuthFormProps = {
@@ -55,8 +56,9 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
 
     try {
       const payload = Object.fromEntries(formData);
-      const response = await fetch(`/api/v1/auth/${mode}`, {
+      const response = await fetch(getApiUrl(`/api/v1/auth/${mode}`), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
