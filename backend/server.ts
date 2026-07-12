@@ -26,7 +26,7 @@ import {
 import type { Address, CartLine, CategoryItem, DemoUser, FeedPost, OrderDetail, OrderSummary, Product, Story, UserAddress } from "../lib/types";
 
 const app = express();
-const port = Number(process.env.BACKEND_PORT ?? 4000);
+const port = Number(process.env.BACKEND_PORT ?? 5000);
 const frontendOrigin = process.env.FRONTEND_URL ?? "http://localhost:3000";
 const productUploadDir = path.join(process.cwd(), "public", "uploads", "products");
 const profileUploadDir = path.join(process.cwd(), "public", "uploads", "profiles");
