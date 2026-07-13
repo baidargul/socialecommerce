@@ -30,10 +30,10 @@ Example cloud values:
 ```env
 MONGODB_URI="mongodb://127.0.0.1:27017/socialecommerce"
 JWT_SECRET="a-long-random-production-secret-value"
-BACKEND_PORT=4000
-BACKEND_URL="http://127.0.0.1:4000"
-PUBLIC_API_URL="http://187.127.141.214:4000"
-NEXT_PUBLIC_API_URL="http://187.127.141.214:4000"
+BACKEND_PORT=5000
+BACKEND_URL="http://127.0.0.1:5000"
+PUBLIC_API_URL="http://187.127.141.214:5000"
+NEXT_PUBLIC_API_URL="http://187.127.141.214:5000"
 FRONTEND_URL="http://187.127.141.214:3000"
 UPLOAD_DIR="/root/socialecommerce/uploads"
 COOKIE_SECURE=false
@@ -61,7 +61,7 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
-curl http://127.0.0.1:4000/health
+curl http://127.0.0.1:5000/health
 ```
 
 The API retains `/api/v1` routes and the `{ success, data, error, meta }` envelope. Checkout accepts an optional `Idempotency-Key` header and uses atomic stock reservations plus stale-attempt recovery, so standalone MongoDB is supported.
