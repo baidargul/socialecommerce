@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, MessageCircle, MoreHorizontal, Send, ShoppingBag } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  MoreHorizontal,
+  Send,
+  ShoppingBag,
+} from "lucide-react";
 import type { FeedPost } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -12,6 +18,7 @@ import { FeaturedProduct } from "@/components/feed/featured-product";
 import { ProductMediaCarousel } from "@/components/feed/product-media-carousel";
 import { useFeedStore } from "@/store/use-feed-store";
 import { useSheetStore } from "@/store/use-sheet-store";
+import { apiFetch } from "@/lib/api-url";
 
 export function FeedPostCard({ post }: { post: FeedPost }) {
   const { requireAuth } = useAuthGuard();
@@ -23,11 +30,21 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
   return (
     <article className="border-b border-zinc-100 pb-10">
       <header className="flex items-center justify-between px-5 py-4">
-        <Link href={`/profile/${post.creator.username}`} className="flex items-center gap-3">
-          <Avatar src={post.creator.avatarUrl} alt={post.creator.username} size="sm" />
+        <Link
+          href={`/profile/${post.creator.username}`}
+          className="flex items-center gap-3"
+        >
+          <Avatar
+            src={post.creator.avatarUrl}
+            alt={post.creator.username}
+            size="sm"
+          />
           <p className="text-[18px] font-black">{post.creator.username}</p>
         </Link>
-        <IconButton label="Post options" icon={<MoreHorizontal className="size-6" />} />
+        <IconButton
+          label="Post options"
+          icon={<MoreHorizontal className="size-6" />}
+        />
       </header>
 
       <ProductMediaCarousel key={post.id} media={post.media} alt={post.caption}>
@@ -49,27 +66,46 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
         <div className="flex items-center gap-4">
           <button
             className="flex items-center gap-2 text-[17px] font-black"
-            onClick={() => {
+            onClick={async () => {
               if (!requireAuth()) return;
+              const response = await apiFetch(`/api/v1/posts/${post.id}/like`, {
+                method: "POST",
+              });
+              if (!response.ok) return;
               toggleLike(post.id);
             }}
           >
-            <Heart className="size-8" fill={post.isLiked ? "currentColor" : "none"} />
+            <Heart
+              className="size-8"
+              fill={post.isLiked ? "currentColor" : "none"}
+            />
             {formatCompactNumber(post.likeCount)}
           </button>
-          <button className="flex items-center gap-2 text-[17px] font-black" onClick={() => openComments(post)}>
+          <button
+            className="flex items-center gap-2 text-[17px] font-black"
+            onClick={() => openComments(post)}
+          >
             <MessageCircle className="size-8" />
             {formatCompactNumber(post.commentCount)}
           </button>
-          <IconButton label="Share post" icon={<Send className="size-8" />} onClick={() => openShare(post)} />
+          <IconButton
+            label="Share post"
+            icon={<Send className="size-8" />}
+            onClick={() => openShare(post)}
+          />
         </div>
 
         <p className="mt-3 text-[17px] leading-snug">
-          <Link href={`/profile/${post.creator.username}`} className="font-black">
+          <Link
+            href={`/profile/${post.creator.username}`}
+            className="font-black"
+          >
             {post.creator.username}
           </Link>{" "}
           {post.caption}{" "}
-          {post.hashtags.map((tag) => (tag ? <span key={tag}>#{tag} </span> : null))}
+          {post.hashtags.map((tag) =>
+            tag ? <span key={tag}>#{tag} </span> : null,
+          )}
         </p>
 
         {post.product ? <FeaturedProduct product={post.product} /> : null}

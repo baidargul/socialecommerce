@@ -8,7 +8,13 @@ import { SheetHost } from "@/components/sheets/sheet-host";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useFeedStore } from "@/store/use-feed-store";
 
-export function HomeFeed({ posts, stories }: { posts: FeedPost[]; stories: Story[] }) {
+export function HomeFeed({
+  posts,
+  stories,
+}: {
+  posts: FeedPost[];
+  stories: Story[];
+}) {
   const storePosts = useFeedStore((state) => state.posts);
   const setPosts = useFeedStore((state) => state.setPosts);
 
@@ -25,9 +31,13 @@ export function HomeFeed({ posts, stories }: { posts: FeedPost[]; stories: Story
       <StoriesBar stories={stories} />
       <div>
         {renderedPosts.length ? (
-          renderedPosts.map((post) => <FeedPostCard key={post.id} post={post} />)
+          renderedPosts.map((post) => (
+            <FeedPostCard key={post.id} post={post} />
+          ))
         ) : (
-          <EmptyState title="No posts yet">Posts from your database will appear here.</EmptyState>
+          <EmptyState title="No posts yet">
+            Posts from your database will appear here.
+          </EmptyState>
         )}
       </div>
       <SheetHost />

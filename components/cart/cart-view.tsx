@@ -12,6 +12,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { TextInput } from "@/components/ui/input";
 import type { OrderDetail, UserAddress } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-url";
 import { useCartStore } from "@/store/use-cart-store";
 
 type OrderResponse = {
@@ -65,9 +66,11 @@ export function CartView() {
     async function loadAddresses() {
       setAddressLoading(true);
       try {
-        const response = await fetch("/api/v1/account/addresses");
+        const response = await apiFetch("/api/v1/account/addresses");
         const contentType = response.headers.get("content-type") ?? "";
-        const body = contentType.includes("application/json") ? ((await response.json()) as AddressResponse) : null;
+        const body = contentType.includes("application/json")
+          ? ((await response.json()) as AddressResponse)
+          : null;
         if (!response.ok || !body?.success || !body.data) {
           setSavedAddresses([]);
           setUseManualAddress(true);
@@ -75,7 +78,9 @@ export function CartView() {
         }
 
         setSavedAddresses(body.data.items);
-        const defaultAddress = body.data.items.find((address) => address.isDefault) ?? body.data.items[0];
+        const defaultAddress =
+          body.data.items.find((address) => address.isDefault) ??
+          body.data.items[0];
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
           setUseManualAddress(false);
@@ -95,7 +100,7 @@ export function CartView() {
     setPlacingOrder(true);
     setCheckoutError("");
     try {
-      const response = await fetch("/api/v1/orders", {
+      const response = await apiFetch("/api/v1/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
@@ -105,7 +110,9 @@ export function CartView() {
         ),
       });
       const contentType = response.headers.get("content-type") ?? "";
-      const body = contentType.includes("application/json") ? ((await response.json()) as OrderResponse) : null;
+      const body = contentType.includes("application/json")
+        ? ((await response.json()) as OrderResponse)
+        : null;
       if (!response.ok || !body?.success || !body.data) {
         setCheckoutError(body?.error?.message ?? "Could not place order.");
         await loadCart();
@@ -123,7 +130,13 @@ export function CartView() {
   }
 
   if (!isAuthenticated) {
-    return <AuthRequired title="Login to view cart" message="Your cart, checkout, and order flow are tied to your account session." nextPath="/cart" />;
+    return (
+      <AuthRequired
+        title="Login to view cart"
+        message="Your cart, checkout, and order flow are tied to your account session."
+        nextPath="/cart"
+      />
+    );
   }
 
   if (!items.length) {
@@ -132,14 +145,23 @@ export function CartView() {
         <h1 className="text-4xl font-black">Cart</h1>
         {order ? (
           <section className="mt-6 rounded-lg bg-emerald-50 p-5">
-            <h2 className="text-2xl font-black text-emerald-800">Order placed</h2>
-            <p className="mt-2 text-sm font-bold text-emerald-700">Order #{order.id.slice(-8)} is now pending confirmation.</p>
-            <Link href={`/orders/${order.id}`} className="mt-4 inline-flex min-h-10 items-center rounded-full bg-emerald-700 px-4 text-sm font-black text-white">
+            <h2 className="text-2xl font-black text-emerald-800">
+              Order placed
+            </h2>
+            <p className="mt-2 text-sm font-bold text-emerald-700">
+              Order #{order.id.slice(-8)} is now pending confirmation.
+            </p>
+            <Link
+              href={`/orders/${order.id}`}
+              className="mt-4 inline-flex min-h-10 items-center rounded-full bg-emerald-700 px-4 text-sm font-black text-white"
+            >
               View Order
             </Link>
           </section>
         ) : null}
-        <EmptyState title="Your cart is empty">Add products from the feed or shop.</EmptyState>
+        <EmptyState title="Your cart is empty">
+          Add products from the feed or shop.
+        </EmptyState>
       </div>
     );
   }
@@ -161,27 +183,59 @@ export function CartView() {
       </div>
       <div className="mt-6 grid gap-4">
         {items.map((item) => (
-          <article key={item.product.id} className="flex gap-4 rounded-lg border border-zinc-100 p-3">
+          <article
+            key={item.product.id}
+            className="flex gap-4 rounded-lg border border-zinc-100 p-3"
+          >
             <div className="relative size-24 overflow-hidden rounded-lg bg-zinc-100">
-              {item.product.images[0] ? <Image src={item.product.images[0]} alt={item.product.name} fill sizes="96px" className="object-cover" /> : null}
+              {item.product.images[0] ? (
+                <Image
+                  src={item.product.images[0]}
+                  alt={item.product.name}
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                />
+              ) : null}
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg font-black">{item.product.name}</h2>
-              <p className="font-black text-[#1768d8]">{formatPrice(item.product.price)}</p>
+              <h2 className="truncate text-lg font-black">
+                {item.product.name}
+              </h2>
+              <p className="font-black text-[#1768d8]">
+                {formatPrice(item.product.price)}
+              </p>
               <div className="mt-3 flex items-center gap-2">
-                <IconButton label="Decrease quantity" icon={<Minus className="size-4" />} className="size-8 bg-zinc-100" onClick={() => {
-                  if (!requireAuth("/cart")) return;
-                  void updateQuantity(item.product.id, item.quantity - 1);
-                }} />
-                <span className="w-8 text-center font-black">{item.quantity}</span>
-                <IconButton label="Increase quantity" icon={<Plus className="size-4" />} className="size-8 bg-zinc-100" onClick={() => {
-                  if (!requireAuth("/cart")) return;
-                  void updateQuantity(item.product.id, item.quantity + 1);
-                }} />
-                <IconButton label="Remove product" icon={<Trash2 className="size-4" />} className="ml-auto size-8 text-red-600" onClick={() => {
-                  if (!requireAuth("/cart")) return;
-                  void removeProduct(item.product.id);
-                }} />
+                <IconButton
+                  label="Decrease quantity"
+                  icon={<Minus className="size-4" />}
+                  className="size-8 bg-zinc-100"
+                  onClick={() => {
+                    if (!requireAuth("/cart")) return;
+                    void updateQuantity(item.product.id, item.quantity - 1);
+                  }}
+                />
+                <span className="w-8 text-center font-black">
+                  {item.quantity}
+                </span>
+                <IconButton
+                  label="Increase quantity"
+                  icon={<Plus className="size-4" />}
+                  className="size-8 bg-zinc-100"
+                  onClick={() => {
+                    if (!requireAuth("/cart")) return;
+                    void updateQuantity(item.product.id, item.quantity + 1);
+                  }}
+                />
+                <IconButton
+                  label="Remove product"
+                  icon={<Trash2 className="size-4" />}
+                  className="ml-auto size-8 text-red-600"
+                  onClick={() => {
+                    if (!requireAuth("/cart")) return;
+                    void removeProduct(item.product.id);
+                  }}
+                />
               </div>
             </div>
           </article>
@@ -203,18 +257,33 @@ export function CartView() {
             <span>{formatPrice(subtotal)}</span>
           </div>
         </div>
-        {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
-        <Button className="mt-6 w-full text-lg" onClick={() => {
-          if (!requireAuth("/cart")) return;
-          setShowCheckout((current) => !current);
-        }}>Checkout</Button>
+        {error ? (
+          <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+            {error}
+          </p>
+        ) : null}
+        <Button
+          className="mt-6 w-full text-lg"
+          onClick={() => {
+            if (!requireAuth("/cart")) return;
+            setShowCheckout((current) => !current);
+          }}
+        >
+          Checkout
+        </Button>
       </section>
 
       {showCheckout ? (
         <section className="mt-5 rounded-lg border border-zinc-100 bg-white p-5">
           <h2 className="text-2xl font-black">Shipping</h2>
-          <p className="mt-1 text-sm font-bold text-zinc-500">Payment method: Cash on delivery</p>
-          {addressLoading ? <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm font-bold text-zinc-500">Loading saved addresses...</p> : null}
+          <p className="mt-1 text-sm font-bold text-zinc-500">
+            Payment method: Cash on delivery
+          </p>
+          {addressLoading ? (
+            <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm font-bold text-zinc-500">
+              Loading saved addresses...
+            </p>
+          ) : null}
           {savedAddresses.length ? (
             <div className="mt-5 grid gap-3">
               <p className="text-sm font-black">Saved addresses</p>
@@ -222,53 +291,122 @@ export function CartView() {
                 <label
                   key={address.id}
                   className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${
-                    !useManualAddress && selectedAddressId === address.id ? "border-[#d62976] bg-[#fff1f7]" : "border-zinc-100"
+                    !useManualAddress && selectedAddressId === address.id
+                      ? "border-[#d62976] bg-[#fff1f7]"
+                      : "border-zinc-100"
                   }`}
                 >
                   <input
                     type="radio"
                     name="checkout-address"
-                    checked={!useManualAddress && selectedAddressId === address.id}
+                    checked={
+                      !useManualAddress && selectedAddressId === address.id
+                    }
                     onChange={() => {
                       setSelectedAddressId(address.id);
                       setUseManualAddress(false);
                     }}
                   />
                   <span>
-                    <span className="font-black">{address.label || "Address"} {address.isDefault ? "(Default)" : ""}</span>
+                    <span className="font-black">
+                      {address.label || "Address"}{" "}
+                      {address.isDefault ? "(Default)" : ""}
+                    </span>
                     <span className="mt-1 block font-medium text-zinc-600">
-                      {address.fullName}, {address.addressLine}, {address.city}, {address.country}
+                      {address.fullName}, {address.addressLine}, {address.city},{" "}
+                      {address.country}
                     </span>
                   </span>
                 </label>
               ))}
-              <label className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${useManualAddress ? "border-[#1768d8] bg-blue-50" : "border-zinc-100"}`}>
-                <input type="radio" name="checkout-address" checked={useManualAddress} onChange={() => setUseManualAddress(true)} />
+              <label
+                className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm ${useManualAddress ? "border-[#1768d8] bg-blue-50" : "border-zinc-100"}`}
+              >
+                <input
+                  type="radio"
+                  name="checkout-address"
+                  checked={useManualAddress}
+                  onChange={() => setUseManualAddress(true)}
+                />
                 <span className="font-black">Enter new address</span>
               </label>
             </div>
           ) : null}
           {useManualAddress ? (
             <div className="mt-5 grid gap-4">
-              <TextInput label="Full name" value={shippingAddress.fullName} onChange={(event) => updateAddress("fullName", event.target.value)} />
-              <TextInput label="Phone" value={shippingAddress.phone} onChange={(event) => updateAddress("phone", event.target.value)} />
-              <TextInput label="Address" value={shippingAddress.addressLine} onChange={(event) => updateAddress("addressLine", event.target.value)} />
+              <TextInput
+                label="Full name"
+                value={shippingAddress.fullName}
+                onChange={(event) =>
+                  updateAddress("fullName", event.target.value)
+                }
+              />
+              <TextInput
+                label="Phone"
+                value={shippingAddress.phone}
+                onChange={(event) => updateAddress("phone", event.target.value)}
+              />
+              <TextInput
+                label="Address"
+                value={shippingAddress.addressLine}
+                onChange={(event) =>
+                  updateAddress("addressLine", event.target.value)
+                }
+              />
               <div className="grid grid-cols-2 gap-3">
-                <TextInput label="City" value={shippingAddress.city} onChange={(event) => updateAddress("city", event.target.value)} />
-                <TextInput label="State" value={shippingAddress.state} onChange={(event) => updateAddress("state", event.target.value)} />
+                <TextInput
+                  label="City"
+                  value={shippingAddress.city}
+                  onChange={(event) =>
+                    updateAddress("city", event.target.value)
+                  }
+                />
+                <TextInput
+                  label="State"
+                  value={shippingAddress.state}
+                  onChange={(event) =>
+                    updateAddress("state", event.target.value)
+                  }
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <TextInput label="Country" value={shippingAddress.country} onChange={(event) => updateAddress("country", event.target.value)} />
-                <TextInput label="Postal code" value={shippingAddress.postalCode} onChange={(event) => updateAddress("postalCode", event.target.value)} />
+                <TextInput
+                  label="Country"
+                  value={shippingAddress.country}
+                  onChange={(event) =>
+                    updateAddress("country", event.target.value)
+                  }
+                />
+                <TextInput
+                  label="Postal code"
+                  value={shippingAddress.postalCode}
+                  onChange={(event) =>
+                    updateAddress("postalCode", event.target.value)
+                  }
+                />
               </div>
               <label className="flex items-center gap-2 text-sm font-bold text-zinc-700">
-                <input type="checkbox" checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={saveAddress}
+                  onChange={(event) => setSaveAddress(event.target.checked)}
+                />
                 Save this address for next time
               </label>
             </div>
           ) : null}
-          {checkoutError ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{checkoutError}</p> : null}
-          <Button className="mt-5 w-full text-lg" loading={placingOrder} onClick={placeOrder}>Place COD Order</Button>
+          {checkoutError ? (
+            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+              {checkoutError}
+            </p>
+          ) : null}
+          <Button
+            className="mt-5 w-full text-lg"
+            loading={placingOrder}
+            onClick={placeOrder}
+          >
+            Place COD Order
+          </Button>
         </section>
       ) : null}
     </div>

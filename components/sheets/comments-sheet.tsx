@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send } from "lucide-react";
 import { Sheet } from "@/components/sheets/sheet";
 import { useAuthGuard } from "@/components/auth/use-auth-guard";
 import { Avatar } from "@/components/ui/avatar";
 import { IconButton } from "@/components/ui/icon-button";
-import { demoComments, demoUsers } from "@/lib/demo-data";
+import { demoUsers } from "@/lib/demo-data";
+import { apiFetch } from "@/lib/api-url";
 import type { CommentItem } from "@/lib/types";
 import { useFeedStore } from "@/store/use-feed-store";
 import { useSheetStore } from "@/store/use-sheet-store";
@@ -19,27 +20,34 @@ export function CommentsSheet({ open }: { open: boolean }) {
   const closeSheet = useSheetStore((state) => state.closeSheet);
   const incrementComments = useFeedStore((state) => state.incrementComments);
   const [text, setText] = useState("");
-  const [comments, setComments] = useState<CommentItem[]>(demoComments);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+
+  useEffect(() => {
+    if (!open || !selectedPost) return;
+    void apiFetch(`/api/v1/posts/${selectedPost.id}/comments`)
+      .then((response) => response.json())
+      .then((body) => setComments(body.data?.items ?? []));
+  }, [open, selectedPost]);
 
   if (!selectedPost) return null;
 
-  const visibleComments = comments.filter((comment) => comment.postId === selectedPost.id || selectedPost.id === "post-cozy");
+  const visibleComments = comments;
 
-  function addComment() {
+  async function addComment() {
     if (!requireAuth()) return;
     const trimmed = text.trim();
     if (!trimmed || !selectedPost) return;
-    setComments((current) => [
-      ...current,
+    const response = await apiFetch(
+      `/api/v1/posts/${selectedPost.id}/comments`,
       {
-        id: crypto.randomUUID(),
-        postId: selectedPost.id,
-        user: user ? { ...demoUsers[5], ...user } : demoUsers[5],
-        text: trimmed,
-        likeCount: 0,
-        createdAt: new Date().toISOString(),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trimmed }),
       },
-    ]);
+    );
+    const body = await response.json();
+    if (!response.ok || !body.data) return;
+    setComments((current) => [...current, body.data]);
     setText("");
     incrementComments(selectedPost.id);
   }
@@ -51,7 +59,11 @@ export function CommentsSheet({ open }: { open: boolean }) {
         {visibleComments.length ? (
           visibleComments.map((comment) => (
             <div key={comment.id} className="flex gap-4">
-              <Avatar src={comment.user.avatarUrl} alt={comment.user.username} size="sm" />
+              <Avatar
+                src={comment.user.avatarUrl}
+                alt={comment.user.username}
+                size="sm"
+              />
               <div>
                 <p className="text-xl font-black">{comment.user.username}</p>
                 <p className="text-2xl text-zinc-700">{comment.text}</p>
@@ -71,11 +83,17 @@ export function CommentsSheet({ open }: { open: boolean }) {
         ))}
       </div>
       <div className="flex items-center gap-3">
-        <Avatar src={demoUsers[5].avatarUrl} alt={demoUsers[5].username} size="sm" />
+        <Avatar
+          src={user?.avatarUrl ?? demoUsers[5].avatarUrl}
+          alt={user?.username ?? demoUsers[5].username}
+          size="sm"
+        />
         <div className="flex min-h-12 flex-1 items-center rounded-full border border-zinc-200 px-4">
           <input
             className="w-full bg-transparent text-xl outline-none placeholder:text-zinc-300"
-            placeholder={isAuthenticated ? "Add a comment..." : "Login to comment..."}
+            placeholder={
+              isAuthenticated ? "Add a comment..." : "Login to comment..."
+            }
             value={text}
             readOnly={!isAuthenticated}
             onFocus={() => {
@@ -83,10 +101,14 @@ export function CommentsSheet({ open }: { open: boolean }) {
             }}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") addComment();
+              if (event.key === "Enter") void addComment();
             }}
           />
-          <IconButton label="Add comment" icon={<Send className="size-5" />} onClick={addComment} />
+          <IconButton
+            label="Add comment"
+            icon={<Send className="size-5" />}
+            onClick={() => void addComment()}
+          />
         </div>
       </div>
     </Sheet>

@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { CartLine, Product } from "@/lib/types";
+import { apiFetch } from "@/lib/api-url";
 
 type CartState = {
   items: CartLine[];
@@ -24,14 +25,20 @@ type CartResponse = {
 
 async function readCartResponse(response: Response): Promise<CartResponse> {
   const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("application/json")) return (await response.json()) as CartResponse;
-  return { success: false, data: null, error: { message: "Cart service returned an invalid response." } };
+  if (contentType.includes("application/json"))
+    return (await response.json()) as CartResponse;
+  return {
+    success: false,
+    data: null,
+    error: { message: "Cart service returned an invalid response." },
+  };
 }
 
 async function syncCart(path: string, init?: RequestInit) {
-  const response = await fetch(path, init);
+  const response = await apiFetch(path, init);
   const body = await readCartResponse(response);
-  if (!response.ok || !body.success || !body.data) throw new Error(body.error?.message ?? "Cart update failed.");
+  if (!response.ok || !body.success || !body.data)
+    throw new Error(body.error?.message ?? "Cart update failed.");
   return body.data.items;
 }
 
@@ -44,7 +51,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       set({ items: await syncCart("/api/v1/cart"), loading: false });
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : "Cart load failed." });
+      set({
+        loading: false,
+        error: error instanceof Error ? error.message : "Cart load failed.",
+      });
     }
   },
   addProduct: async (product, quantity = 1) => {
@@ -59,7 +69,10 @@ export const useCartStore = create<CartState>((set, get) => ({
         loading: false,
       });
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : "Cart update failed." });
+      set({
+        loading: false,
+        error: error instanceof Error ? error.message : "Cart update failed.",
+      });
     }
   },
   updateQuantity: async (productId, quantity) => {
@@ -74,7 +87,10 @@ export const useCartStore = create<CartState>((set, get) => ({
         loading: false,
       });
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : "Cart update failed." });
+      set({
+        loading: false,
+        error: error instanceof Error ? error.message : "Cart update failed.",
+      });
     }
   },
   removeProduct: async (productId) => {
@@ -89,17 +105,30 @@ export const useCartStore = create<CartState>((set, get) => ({
         loading: false,
       });
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : "Cart update failed." });
+      set({
+        loading: false,
+        error: error instanceof Error ? error.message : "Cart update failed.",
+      });
     }
   },
   clearCart: async () => {
     set({ loading: true, error: "" });
     try {
-      set({ items: await syncCart("/api/v1/cart/clear", { method: "POST" }), loading: false });
+      set({
+        items: await syncCart("/api/v1/cart/clear", { method: "POST" }),
+        loading: false,
+      });
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : "Cart update failed." });
+      set({
+        loading: false,
+        error: error instanceof Error ? error.message : "Cart update failed.",
+      });
     }
   },
   resetCart: () => set({ items: [], error: "", loading: false }),
-  subtotal: () => get().items.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+  subtotal: () =>
+    get().items.reduce(
+      (sum, item) => sum + item.product.price * item.quantity,
+      0,
+    ),
 }));

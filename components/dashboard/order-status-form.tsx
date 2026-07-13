@@ -4,8 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { OrderDetail } from "@/lib/types";
+import { apiFetch } from "@/lib/api-url";
 
-const statuses = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const;
+const statuses = [
+  "PENDING",
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+  "REFUNDED",
+] as const;
 
 type OrderStatus = OrderDetail["status"];
 
@@ -32,13 +41,18 @@ export function OrderStatusForm({ orderId, status }: OrderStatusFormProps) {
     setMessage("");
     setError("");
     try {
-      const response = await fetch(`/api/v1/dashboard/orders/${orderId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: selectedStatus }),
-      });
+      const response = await apiFetch(
+        `/api/v1/dashboard/orders/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: selectedStatus }),
+        },
+      );
       const contentType = response.headers.get("content-type") ?? "";
-      const body = contentType.includes("application/json") ? ((await response.json()) as ApiResponse) : null;
+      const body = contentType.includes("application/json")
+        ? ((await response.json()) as ApiResponse)
+        : null;
       if (!response.ok || !body?.success) {
         setError(body?.error?.message ?? "Could not update order status.");
         return;
@@ -60,7 +74,9 @@ export function OrderStatusForm({ orderId, status }: OrderStatusFormProps) {
           Status
           <select
             value={selectedStatus}
-            onChange={(event) => setSelectedStatus(event.target.value as OrderStatus)}
+            onChange={(event) =>
+              setSelectedStatus(event.target.value as OrderStatus)
+            }
             className="h-11 rounded border border-zinc-200 bg-white px-3 text-sm font-bold outline-none focus:border-zinc-900"
           >
             {statuses.map((item) => (
@@ -70,12 +86,24 @@ export function OrderStatusForm({ orderId, status }: OrderStatusFormProps) {
             ))}
           </select>
         </label>
-        <Button loading={loading} disabled={selectedStatus === status} onClick={updateStatus}>
+        <Button
+          loading={loading}
+          disabled={selectedStatus === status}
+          onClick={updateStatus}
+        >
           Update Status
         </Button>
       </div>
-      {message ? <p className="mt-3 rounded bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p> : null}
-      {error ? <p className="mt-3 rounded bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+      {message ? (
+        <p className="mt-3 rounded bg-emerald-50 p-3 text-sm font-bold text-emerald-700">
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="mt-3 rounded bg-red-50 p-3 text-sm font-bold text-red-700">
+          {error}
+        </p>
+      ) : null}
     </section>
   );
 }

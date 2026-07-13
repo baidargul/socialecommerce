@@ -19,8 +19,23 @@ export const useSheetStore = create<SheetState>((set) => ({
   activeSheet: null,
   selectedPost: null,
   selectedProduct: null,
-  openComments: (post) => set({ activeSheet: "comments", selectedPost: post, selectedProduct: post.product ?? null }),
-  openCheckout: (product, post) => set({ activeSheet: "checkout", selectedProduct: product, selectedPost: post ?? null }),
-  openShare: (post) => set({ activeSheet: "share", selectedPost: post, selectedProduct: post.product ?? null }),
+  openComments: (post) =>
+    set({
+      activeSheet: "comments",
+      selectedPost: post,
+      selectedProduct: post.product ?? null,
+    }),
+  openCheckout: (product, post) =>
+    set({
+      activeSheet: "checkout",
+      selectedProduct: product,
+      selectedPost: post ?? null,
+    }),
+  openShare: (post) =>
+    set({
+      activeSheet: "share",
+      selectedPost: post,
+      selectedProduct: post.product ?? null,
+    }),
   closeSheet: () => set({ activeSheet: null }),
 }));

@@ -45,7 +45,10 @@ export function Sheet({ open, onClose, children, className }: SheetProps) {
           <motion.section
             role="dialog"
             aria-modal="true"
-            className={cn("absolute inset-x-0 bottom-0 rounded-t-[28px] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-4 shadow-2xl", className)}
+            className={cn(
+              "absolute inset-x-0 bottom-0 rounded-t-[28px] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-4 shadow-2xl",
+              className,
+            )}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}

@@ -29,13 +29,17 @@ export const useFeedStore = create<FeedState>((set) => ({
   incrementComments: (postId) =>
     set((state) => ({
       posts: state.posts.map((post) =>
-        post.id === postId ? { ...post, commentCount: post.commentCount + 1 } : post,
+        post.id === postId
+          ? { ...post, commentCount: post.commentCount + 1 }
+          : post,
       ),
     })),
   incrementShares: (postId) =>
     set((state) => ({
       posts: state.posts.map((post) =>
-        post.id === postId ? { ...post, shareCount: post.shareCount + 1 } : post,
+        post.id === postId
+          ? { ...post, shareCount: post.shareCount + 1 }
+          : post,
       ),
     })),
 }));

@@ -1,7 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 import type { FeedPost } from "@/lib/types";
 
@@ -15,7 +21,11 @@ type ProductMediaCarouselProps = {
   children?: ReactNode;
 };
 
-export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarouselProps) {
+export function ProductMediaCarousel({
+  media,
+  alt,
+  children,
+}: ProductMediaCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
@@ -46,7 +56,10 @@ export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarou
   );
 
   const goNext = useCallback(() => goTo(activeIndex + 1), [activeIndex, goTo]);
-  const goPrevious = useCallback(() => goTo(activeIndex - 1), [activeIndex, goTo]);
+  const goPrevious = useCallback(
+    () => goTo(activeIndex - 1),
+    [activeIndex, goTo],
+  );
 
   useEffect(() => {
     const node = rootRef.current;
@@ -118,7 +131,10 @@ export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarou
   }
 
   function isInteractiveTarget(target: EventTarget | null) {
-    return target instanceof HTMLElement && Boolean(target.closest("button, a, input, textarea, select"));
+    return (
+      target instanceof HTMLElement &&
+      Boolean(target.closest("button, a, input, textarea, select"))
+    );
   }
 
   function handleMove(clientX: number, clientY: number) {
@@ -126,7 +142,8 @@ export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarou
 
     const deltaX = clientX - pointerStart.current.x;
     const deltaY = clientY - pointerStart.current.y;
-    const isHorizontalSwipe = Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY);
+    const isHorizontalSwipe =
+      Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY);
     if (isHorizontalSwipe) {
       setDragOffset(Math.max(-80, Math.min(80, deltaX * 0.35)));
     }
@@ -141,7 +158,9 @@ export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarou
 
     const deltaX = clientX - pointerStart.current.x;
     const deltaY = clientY - pointerStart.current.y;
-    const horizontalSwipe = Math.abs(deltaX) >= SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY);
+    const horizontalSwipe =
+      Math.abs(deltaX) >= SWIPE_THRESHOLD_PX &&
+      Math.abs(deltaX) > Math.abs(deltaY);
     pointerStart.current = null;
     setDragOffset(0);
 
@@ -220,7 +239,15 @@ export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarou
             }}
           />
         ) : activeMedia ? (
-          <Image key={activeMedia.url} src={activeMedia.url} alt={alt} fill sizes="430px" draggable={false} className="object-cover" />
+          <Image
+            key={activeMedia.url}
+            src={activeMedia.url}
+            alt={alt}
+            fill
+            sizes="430px"
+            draggable={false}
+            className="object-cover"
+          />
         ) : null}
       </div>
 
@@ -228,10 +255,17 @@ export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarou
         <>
           <div className="absolute inset-x-3 top-3 z-10 flex gap-1.5">
             {media.map((item, index) => {
-              const filled = index < activeIndex ? 1 : index === activeIndex ? progress : 0;
+              const filled =
+                index < activeIndex ? 1 : index === activeIndex ? progress : 0;
               return (
-                <div key={`${item.url}-${index}`} className="h-1 flex-1 overflow-hidden rounded-full bg-white/35 shadow-sm">
-                  <div className="h-full rounded-full bg-white transition-[width] duration-100 ease-linear" style={{ width: `${filled * 100}%` }} />
+                <div
+                  key={`${item.url}-${index}`}
+                  className="h-1 flex-1 overflow-hidden rounded-full bg-white/35 shadow-sm"
+                >
+                  <div
+                    className="h-full rounded-full bg-white transition-[width] duration-100 ease-linear"
+                    style={{ width: `${filled * 100}%` }}
+                  />
                 </div>
               );
             })}
@@ -239,13 +273,21 @@ export function ProductMediaCarousel({ media, alt, children }: ProductMediaCarou
 
           <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
             {media.map((item, index) => (
-              <span key={`${item.url}-${index}-dot`} className={cn("size-2 rounded-full", index === activeIndex ? "bg-white" : "bg-white/60")} />
+              <span
+                key={`${item.url}-${index}-dot`}
+                className={cn(
+                  "size-2 rounded-full",
+                  index === activeIndex ? "bg-white" : "bg-white/60",
+                )}
+              />
             ))}
           </div>
         </>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-0 z-20">{children}</div>
+      <div className="pointer-events-none absolute inset-0 z-20">
+        {children}
+      </div>
     </div>
   );
 }

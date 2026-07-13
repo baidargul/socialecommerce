@@ -9,6 +9,7 @@ import { ProductRowActions } from "@/components/dashboard/product-row-actions";
 import { SearchableDropdown } from "@/components/ui/searchable-dropdown";
 import type { CategoryItem, Product } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-url";
 
 type ProductTableProps = {
   products: Product[];
@@ -32,10 +33,20 @@ function flattenCategoryOptions(categories: CategoryItem[]) {
     children.set(key, [...(children.get(key) ?? []), category]);
   });
 
-  const result: Array<{ value: string; label: string; meta: string; depth: number }> = [];
+  const result: Array<{
+    value: string;
+    label: string;
+    meta: string;
+    depth: number;
+  }> = [];
   function walk(parentId: string, depth: number) {
     (children.get(parentId) ?? []).forEach((category) => {
-      result.push({ value: category.id, label: category.name, meta: category.slug, depth });
+      result.push({
+        value: category.id,
+        label: category.name,
+        meta: category.slug,
+        depth,
+      });
       walk(category.id, depth + 1);
     });
   }
@@ -45,7 +56,9 @@ function flattenCategoryOptions(categories: CategoryItem[]) {
 
 export function ProductTable({ products, categories }: ProductTableProps) {
   const router = useRouter();
-  const [quickEditProductId, setQuickEditProductId] = useState<string | null>(null);
+  const [quickEditProductId, setQuickEditProductId] = useState<string | null>(
+    null,
+  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [operation, setOperation] = useState<BatchOperation | null>(null);
   const [quantityMode, setQuantityMode] = useState<QuantityMode>("set");
@@ -55,11 +68,22 @@ export function ProductTable({ products, categories }: ProductTableProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const productIds = useMemo(() => products.map((product) => product.id), [products]);
-  const selectedProductIds = selectedIds.filter((id) => productIds.includes(id));
-  const categoryOptions = useMemo(() => flattenCategoryOptions(categories), [categories]);
-  const selectedCategory = categories.find((category) => category.id === categoryId);
-  const allSelected = productIds.length > 0 && selectedProductIds.length === productIds.length;
+  const productIds = useMemo(
+    () => products.map((product) => product.id),
+    [products],
+  );
+  const selectedProductIds = selectedIds.filter((id) =>
+    productIds.includes(id),
+  );
+  const categoryOptions = useMemo(
+    () => flattenCategoryOptions(categories),
+    [categories],
+  );
+  const selectedCategory = categories.find(
+    (category) => category.id === categoryId,
+  );
+  const allSelected =
+    productIds.length > 0 && selectedProductIds.length === productIds.length;
   const someSelected = selectedProductIds.length > 0;
 
   function toggleAll() {
@@ -67,7 +91,11 @@ export function ProductTable({ products, categories }: ProductTableProps) {
   }
 
   function toggleProduct(productId: string) {
-    setSelectedIds((current) => (current.includes(productId) ? current.filter((id) => id !== productId) : [...current, productId]));
+    setSelectedIds((current) =>
+      current.includes(productId)
+        ? current.filter((id) => id !== productId)
+        : [...current, productId],
+    );
   }
 
   function clearBatchState() {
@@ -104,7 +132,7 @@ export function ProductTable({ products, categories }: ProductTableProps) {
     }
 
     setSaving(true);
-    const response = await fetch("/api/v1/products/batch", {
+    const response = await apiFetch("/api/v1/products/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -113,7 +141,8 @@ export function ProductTable({ products, categories }: ProductTableProps) {
         quantityMode: nextOperation === "quantity" ? quantityMode : undefined,
         quantity: nextOperation === "quantity" ? Number(quantity) : undefined,
         status: nextOperation === "status" ? status : undefined,
-        category: nextOperation === "category" ? selectedCategory?.name : undefined,
+        category:
+          nextOperation === "category" ? selectedCategory?.name : undefined,
       }),
     });
     const body = (await response.json()) as BatchResponse;
@@ -133,27 +162,51 @@ export function ProductTable({ products, categories }: ProductTableProps) {
       {someSelected ? (
         <div className="flex flex-wrap items-end gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3">
           <div className="mr-auto">
-            <p className="text-sm font-black text-zinc-950">{selectedProductIds.length} selected</p>
-            <p className="text-xs font-bold text-zinc-500">Choose a batch operation for selected products.</p>
+            <p className="text-sm font-black text-zinc-950">
+              {selectedProductIds.length} selected
+            </p>
+            <p className="text-xs font-bold text-zinc-500">
+              Choose a batch operation for selected products.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => activateOperation("quantity")} className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-700">
+            <button
+              type="button"
+              onClick={() => activateOperation("quantity")}
+              className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-700"
+            >
               <Layers3 className="size-4" />
               Quantity
             </button>
-            <button type="button" onClick={() => activateOperation("status")} className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-700">
+            <button
+              type="button"
+              onClick={() => activateOperation("status")}
+              className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-700"
+            >
               <PackageCheck className="size-4" />
               Status
             </button>
-            <button type="button" onClick={() => activateOperation("category")} className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-700">
+            <button
+              type="button"
+              onClick={() => activateOperation("category")}
+              className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-700"
+            >
               <CheckSquare className="size-4" />
               Category
             </button>
-            <button type="button" onClick={() => activateOperation("delete")} className="inline-flex min-h-9 items-center gap-2 rounded border border-red-100 bg-white px-3 text-xs font-black text-red-600">
+            <button
+              type="button"
+              onClick={() => activateOperation("delete")}
+              className="inline-flex min-h-9 items-center gap-2 rounded border border-red-100 bg-white px-3 text-xs font-black text-red-600"
+            >
               <Trash2 className="size-4" />
               Delete
             </button>
-            <button type="button" onClick={clearBatchState} className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-600">
+            <button
+              type="button"
+              onClick={clearBatchState}
+              className="inline-flex min-h-9 items-center gap-2 rounded border border-zinc-200 bg-white px-3 text-xs font-black text-zinc-600"
+            >
               <X className="size-4" />
               Clear
             </button>
@@ -167,11 +220,23 @@ export function ProductTable({ products, categories }: ProductTableProps) {
             <div className="flex h-14 items-center justify-between border-b border-zinc-200 px-5">
               <div>
                 <h3 className="font-black text-zinc-950">
-                  {operation === "quantity" ? "Batch Quantity" : operation === "status" ? "Batch Status" : operation === "category" ? "Batch Category" : "Delete Products"}
+                  {operation === "quantity"
+                    ? "Batch Quantity"
+                    : operation === "status"
+                      ? "Batch Status"
+                      : operation === "category"
+                        ? "Batch Category"
+                        : "Delete Products"}
                 </h3>
-                <p className="text-xs font-bold text-zinc-500">{selectedProductIds.length} selected products</p>
+                <p className="text-xs font-bold text-zinc-500">
+                  {selectedProductIds.length} selected products
+                </p>
               </div>
-              <button type="button" onClick={closeOperationDialog} className="grid size-9 place-items-center rounded border border-zinc-200 text-zinc-600">
+              <button
+                type="button"
+                onClick={closeOperationDialog}
+                className="grid size-9 place-items-center rounded border border-zinc-200 text-zinc-600"
+              >
                 <X className="size-4" />
               </button>
             </div>
@@ -200,7 +265,13 @@ export function ProductTable({ products, categories }: ProductTableProps) {
                   </div>
                   <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
                     Quantity
-                    <input value={quantity} onChange={(event) => setQuantity(event.target.value)} type="number" min="0" className="h-10 rounded border border-zinc-200 px-3 text-sm font-bold normal-case text-zinc-950 outline-none focus:border-[#d62976]" />
+                    <input
+                      value={quantity}
+                      onChange={(event) => setQuantity(event.target.value)}
+                      type="number"
+                      min="0"
+                      className="h-10 rounded border border-zinc-200 px-3 text-sm font-bold normal-case text-zinc-950 outline-none focus:border-[#d62976]"
+                    />
                   </label>
                 </>
               ) : null}
@@ -216,7 +287,9 @@ export function ProductTable({ products, categories }: ProductTableProps) {
                       <button
                         key={value}
                         type="button"
-                        onClick={() => setStatus(value as "ACTIVE" | "OUT_OF_STOCK")}
+                        onClick={() =>
+                          setStatus(value as "ACTIVE" | "OUT_OF_STOCK")
+                        }
                         className={`h-10 text-xs font-black ${status === value ? "bg-[#d62976] text-white" : "text-zinc-700 hover:bg-zinc-50"}`}
                       >
                         {label}
@@ -227,19 +300,36 @@ export function ProductTable({ products, categories }: ProductTableProps) {
               ) : null}
 
               {operation === "category" ? (
-                <SearchableDropdown label="Category" value={categoryId} options={categoryOptions} onChange={setCategoryId} placeholder="Search category" />
+                <SearchableDropdown
+                  label="Category"
+                  value={categoryId}
+                  options={categoryOptions}
+                  onChange={setCategoryId}
+                  placeholder="Search category"
+                />
               ) : null}
 
               {operation === "delete" ? (
                 <div className="rounded border border-red-100 bg-red-50 px-3 py-3">
-                  <p className="text-sm font-bold text-red-700">Delete {selectedProductIds.length} selected products? This also removes them from the timeline.</p>
+                  <p className="text-sm font-bold text-red-700">
+                    Delete {selectedProductIds.length} selected products? This
+                    also removes them from the timeline.
+                  </p>
                 </div>
               ) : null}
 
-              {error ? <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p> : null}
+              {error ? (
+                <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                  {error}
+                </p>
+              ) : null}
 
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={closeOperationDialog} className="min-h-10 rounded border border-zinc-200 px-4 text-sm font-black text-zinc-700">
+                <button
+                  type="button"
+                  onClick={closeOperationDialog}
+                  className="min-h-10 rounded border border-zinc-200 px-4 text-sm font-black text-zinc-700"
+                >
                   Cancel
                 </button>
                 <button
@@ -248,7 +338,13 @@ export function ProductTable({ products, categories }: ProductTableProps) {
                   onClick={() => submitBatch(operation)}
                   className={`min-h-10 rounded px-4 text-sm font-black text-white disabled:opacity-60 ${operation === "delete" ? "bg-red-600" : "bg-[#d62976]"}`}
                 >
-                  {saving ? (operation === "delete" ? "Deleting..." : "Applying...") : operation === "delete" ? "Confirm delete" : "Apply"}
+                  {saving
+                    ? operation === "delete"
+                      ? "Deleting..."
+                      : "Applying..."
+                    : operation === "delete"
+                      ? "Confirm delete"
+                      : "Apply"}
                 </button>
               </div>
             </div>
@@ -261,7 +357,13 @@ export function ProductTable({ products, categories }: ProductTableProps) {
           <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase text-zinc-500">
             <tr>
               <th className="w-10 px-4 py-3 font-black">
-                <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all products" className="size-4 rounded border-zinc-300 accent-[#d62976]" />
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  aria-label="Select all products"
+                  className="size-4 rounded border-zinc-300 accent-[#d62976]"
+                />
               </th>
               <th className="px-4 py-3 font-black">Product</th>
               <th className="px-4 py-3 font-black">Category</th>
@@ -277,20 +379,35 @@ export function ProductTable({ products, categories }: ProductTableProps) {
               const selected = selectedProductIds.includes(product.id);
               return (
                 <Fragment key={product.id}>
-                  <tr className={`border-b border-zinc-100 last:border-b-0 ${selected ? "bg-[#fff8fb]" : ""}`}>
+                  <tr
+                    className={`border-b border-zinc-100 last:border-b-0 ${selected ? "bg-[#fff8fb]" : ""}`}
+                  >
                     <td className="px-4 py-3 align-top">
-                      <input type="checkbox" checked={selected} onChange={() => toggleProduct(product.id)} aria-label={`Select ${product.name}`} className="size-4 rounded border-zinc-300 accent-[#d62976]" />
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleProduct(product.id)}
+                        aria-label={`Select ${product.name}`}
+                        className="size-4 rounded border-zinc-300 accent-[#d62976]"
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <div>
-                        <Link href={`/dashboard/products/${product.id}/edit`} className="font-black text-zinc-950 hover:text-[#d62976] hover:underline">
+                        <Link
+                          href={`/dashboard/products/${product.id}/edit`}
+                          className="font-black text-zinc-950 hover:text-[#d62976] hover:underline"
+                        >
                           {product.name}
                         </Link>
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-zinc-500">
                           <span>{product.sku || product.slug}</span>
                           <button
                             type="button"
-                            onClick={() => setQuickEditProductId(quickEditOpen ? null : product.id)}
+                            onClick={() =>
+                              setQuickEditProductId(
+                                quickEditOpen ? null : product.id,
+                              )
+                            }
                             className="font-black text-[#d62976] hover:underline"
                           >
                             Quick Edit
@@ -298,11 +415,19 @@ export function ProductTable({ products, categories }: ProductTableProps) {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-medium text-zinc-600">{product.category}</td>
-                    <td className="px-4 py-3 font-bold text-zinc-700">{product.stockQuantity}</td>
-                    <td className="px-4 py-3 font-black text-zinc-950">{formatPrice(product.price)}</td>
+                    <td className="px-4 py-3 font-medium text-zinc-600">
+                      {product.category}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-zinc-700">
+                      {product.stockQuantity}
+                    </td>
+                    <td className="px-4 py-3 font-black text-zinc-950">
+                      {formatPrice(product.price)}
+                    </td>
                     <td className="px-4 py-3">
-                      <span className={`rounded px-2 py-1 text-xs font-black ${product.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
+                      <span
+                        className={`rounded px-2 py-1 text-xs font-black ${product.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}
+                      >
                         {product.status}
                       </span>
                     </td>
@@ -310,7 +435,14 @@ export function ProductTable({ products, categories }: ProductTableProps) {
                       <ProductRowActions product={product} />
                     </td>
                   </tr>
-                  {quickEditOpen ? <ProductQuickEditRow product={product} categories={categories} colSpan={columnCount} onCancel={() => setQuickEditProductId(null)} /> : null}
+                  {quickEditOpen ? (
+                    <ProductQuickEditRow
+                      product={product}
+                      categories={categories}
+                      colSpan={columnCount}
+                      onCancel={() => setQuickEditProductId(null)}
+                    />
+                  ) : null}
                 </Fragment>
               );
             })}

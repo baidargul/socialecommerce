@@ -24,13 +24,31 @@ export function CheckoutSheet({ open }: { open: boolean }) {
       <h2 className="mb-8 text-4xl font-black">Checkout</h2>
       <div className="flex gap-6">
         <div className="relative size-36 overflow-hidden rounded-xl bg-zinc-100">
-          {image ? <Image src={image} alt={product.name} fill sizes="144px" className="object-cover" /> : null}
+          {image ? (
+            <Image
+              src={image}
+              alt={product.name}
+              fill
+              sizes="144px"
+              className="object-cover"
+            />
+          ) : null}
         </div>
         <div className="pt-1">
           <h3 className="text-2xl font-black">{product.name}</h3>
-          <p className="mt-3 text-3xl font-black text-[#1768d8]">{formatPrice(product.price)}</p>
-          {product.originalPrice ? <p className="text-xl font-medium text-zinc-500 line-through">{formatPrice(product.originalPrice)}</p> : null}
-          {product.discountPercent ? <p className="mt-1 text-xl font-black text-emerald-600">{product.discountPercent}% OFF</p> : null}
+          <p className="mt-3 text-3xl font-black text-[#1768d8]">
+            {formatPrice(product.price)}
+          </p>
+          {product.originalPrice ? (
+            <p className="text-xl font-medium text-zinc-500 line-through">
+              {formatPrice(product.originalPrice)}
+            </p>
+          ) : null}
+          {product.discountPercent ? (
+            <p className="mt-1 text-xl font-black text-emerald-600">
+              {product.discountPercent}% OFF
+            </p>
+          ) : null}
         </div>
       </div>
 

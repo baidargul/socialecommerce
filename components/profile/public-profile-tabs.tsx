@@ -13,8 +13,14 @@ type PublicProfileTabsProps = {
   initialTab?: "posts" | "products";
 };
 
-export function PublicProfileTabs({ posts, products, initialTab }: PublicProfileTabsProps) {
-  const [activeTab, setActiveTab] = useState<"posts" | "products">(initialTab ?? (posts.length ? "posts" : "products"));
+export function PublicProfileTabs({
+  posts,
+  products,
+  initialTab,
+}: PublicProfileTabsProps) {
+  const [activeTab, setActiveTab] = useState<"posts" | "products">(
+    initialTab ?? (posts.length ? "posts" : "products"),
+  );
   const tabs = [
     { key: "posts" as const, label: "Posts", count: posts.length },
     { key: "products" as const, label: "Products", count: products.length },
@@ -28,7 +34,9 @@ export function PublicProfileTabs({ posts, products, initialTab }: PublicProfile
             key={tab.key}
             className={cn(
               "min-h-12 border-b-2 px-4 text-sm font-black transition",
-              activeTab === tab.key ? "border-zinc-950 text-zinc-950" : "border-transparent text-zinc-500",
+              activeTab === tab.key
+                ? "border-zinc-950 text-zinc-950"
+                : "border-transparent text-zinc-500",
             )}
             onClick={() => setActiveTab(tab.key)}
           >
@@ -45,7 +53,9 @@ export function PublicProfileTabs({ posts, products, initialTab }: PublicProfile
             ))}
           </div>
         ) : (
-          <EmptyState title="No posts yet">Posts from this profile will appear here.</EmptyState>
+          <EmptyState title="No posts yet">
+            Posts from this profile will appear here.
+          </EmptyState>
         )
       ) : products.length ? (
         <div className="grid grid-cols-2 gap-3 px-5 py-5">
@@ -54,7 +64,9 @@ export function PublicProfileTabs({ posts, products, initialTab }: PublicProfile
           ))}
         </div>
       ) : (
-        <EmptyState title="No products yet">Products from this profile will appear here.</EmptyState>
+        <EmptyState title="No products yet">
+          Products from this profile will appear here.
+        </EmptyState>
       )}
     </section>
   );
