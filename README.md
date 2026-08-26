@@ -24,6 +24,8 @@ npm run dev
 - `FRONTEND_URL`: comma-separated exact CORS origins.
 - `UPLOAD_DIR`: persistent backend-owned media directory.
 - `COOKIE_SECURE`: use `true` with HTTPS and `false` for an HTTP-only deployment.
+- `CAPACITOR_SERVER_URL`: debug Android WebView frontend URL; do not use this HTTP configuration for a release build.
+- `ANDROID_JAVA_HOME`: optional JDK 21+ override used only by the Android build script.
 
 Example cloud values:
 
@@ -37,6 +39,8 @@ NEXT_PUBLIC_API_URL="http://187.127.141.214:5000"
 FRONTEND_URL="http://187.127.141.214:3000"
 UPLOAD_DIR="/root/socialecommerce/uploads"
 COOKIE_SECURE=false
+CAPACITOR_SERVER_URL="http://187.127.141.214:3000"
+ANDROID_JAVA_HOME="/path/to/jdk-21-or-newer"
 ```
 
 Public variables must be present before `npm run build`.
@@ -65,3 +69,18 @@ curl http://127.0.0.1:5000/health
 ```
 
 The API retains `/api/v1` routes and the `{ success, data, error, meta }` envelope. Checkout accepts an optional `Idempotency-Key` header and uses atomic stock reservations plus stale-attempt recovery, so standalone MongoDB is supported.
+
+## Android debug app
+
+The Capacitor Android project uses the hosted Next.js frontend. The current HTTP `server.url` and cleartext traffic are for debug builds only; migrate the deployment to HTTPS before preparing a release.
+
+Prerequisites are Node.js 22+, Android Studio 2025.2.1+, JDK 21 or newer, and Android SDK/API 36. Set `CAPACITOR_SERVER_URL` and, when needed, `ANDROID_JAVA_HOME` in the local `.env`, then run:
+
+```bash
+npm run android:sync
+npm run android:open
+npm run android:run
+npm run android:apk
+```
+
+The unsigned debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`. The VPS must expose the frontend and API URLs configured above, and `FRONTEND_URL` must exactly allow the frontend origin.
