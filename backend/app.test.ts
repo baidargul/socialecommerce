@@ -136,7 +136,7 @@ describe("backend API", () => {
       .field("caption", "A post with media")
       .attach("media", Buffer.from("image-data"), {
         filename: "post.png",
-        contentType: "image/png",
+        contentType: "application/octet-stream",
       })
       .expect(201);
     expect(withMedia.body.data.media).toHaveLength(1);
@@ -166,6 +166,42 @@ describe("backend API", () => {
       .expect(200);
     expect(profile.body.data.stats.posts).toBe(2);
     expect(profile.body.data.posts).toHaveLength(2);
+  });
+  it("lets an authenticated customer create a product with Android-style media", async () => {
+    await request(app).post("/api/v1/auth/signup").send({
+      name: "Initial Admin",
+      username: "initial_admin",
+      email: "initial-admin@example.com",
+      password: "password123",
+    });
+    const customer = request.agent(app);
+    const signup = await customer
+      .post("/api/v1/auth/signup")
+      .send({
+        name: "Mobile Seller",
+        username: "mobile_seller",
+        email: "mobile-seller@example.com",
+        password: "password123",
+      })
+      .expect(200);
+    expect(signup.body.data.user.role).toBe("CUSTOMER");
+
+    const created = await customer
+      .post("/api/v1/products")
+      .field("name", "Mobile photo product")
+      .field("price", "19.99")
+      .field("stockQuantity", "2")
+      .field("images", "[]")
+      .field("tags", "[]")
+      .attach("media", Buffer.from("android-image-data"), {
+        filename: "camera-photo.jpg",
+        contentType: "application/octet-stream",
+      })
+      .expect(201);
+
+    expect(created.body.data.vendorId).toBe(signup.body.data.user.id);
+    expect(created.body.data.media).toHaveLength(1);
+    expect(created.body.data.media[0].type).toBe("image");
   });
   it("searches published posts, products, and users without exposing email", async () => {
     const user = await models.User.create({

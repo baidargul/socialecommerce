@@ -55,7 +55,8 @@ export default async function PublicProfilePage({
   const sessionUser = await getSessionUser();
   const isOwner =
     sessionUser?.username.toLowerCase() === username.toLowerCase();
-  const canCreateProducts = Boolean(
+  const canCreateProducts = Boolean(isOwner && sessionUser);
+  const canLoadManagerCategories = Boolean(
     isOwner && sessionUser && ["ADMIN", "VENDOR"].includes(sessionUser.role),
   );
   const [profileResponse, categoriesResponse] = await Promise.all([
@@ -65,7 +66,7 @@ export default async function PublicProfilePage({
         headers: { cookie: cookieStore.toString() },
       },
     ),
-    canCreateProducts
+    canLoadManagerCategories
       ? fetchBackend<{ items: CategoryItem[]; nextCursor: null }>(
           "/api/v1/dashboard/categories",
           { headers: { cookie: cookieStore.toString() } },

@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Hash, Link2, Send } from "lucide-react";
 import type { FeedPost, Product } from "@/lib/types";
-import { apiFetch } from "@/lib/api-url";
+import { uploadFormData } from "@/lib/multipart-upload";
 import { MobileWizardShell } from "@/components/profile/mobile-wizard-shell";
+import { WizardUploadProgress } from "@/components/profile/wizard-upload-progress";
 import {
   clearWizardMedia,
   WizardMediaPicker,
@@ -42,6 +43,7 @@ export function PostCreateWizard({
   const [error, setError] = useState("");
   const [mediaError, setMediaError] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const dirty = Boolean(
     media.length || caption.trim() || hashtags.length || productId,
   );
@@ -90,6 +92,7 @@ export function PostCreateWizard({
       return;
     }
     setPublishing(true);
+    setUploadProgress(0);
     setError("");
     try {
       const formData = new FormData();
@@ -97,12 +100,13 @@ export function PostCreateWizard({
       formData.set("hashtags", JSON.stringify(hashtags));
       if (productId) formData.set("productId", productId);
       media.forEach((item) => formData.append("media", item.file));
-      const response = await apiFetch("/api/v1/posts", {
-        method: "POST",
-        body: formData,
-      });
-      const body = (await response.json()) as ApiEnvelope<FeedPost>;
-      if (!response.ok || !body.success || !body.data) {
+      const { status, body } = await uploadFormData<ApiEnvelope<FeedPost>>(
+        "/api/v1/posts",
+        formData,
+        setUploadProgress,
+      );
+      if (status < 200 || status >= 300 || !body.success || !body.data) {
+        setUploadProgress(null);
         setError(body.error?.message ?? "Post could not be published.");
         return;
       }
@@ -112,6 +116,7 @@ export function PostCreateWizard({
       router.refresh();
       onClose();
     } catch {
+      setUploadProgress(null);
       setError("Could not reach the post service.");
     } finally {
       setPublishing(false);
@@ -119,35 +124,42 @@ export function PostCreateWizard({
   }
 
   const footer = (
-    <div className="flex gap-3">
-      {step > 0 ? (
+    <div>
+      <WizardUploadProgress progress={uploadProgress} action="Post" />
+      <div className="flex gap-3">
+        {step > 0 ? (
+          <button
+            type="button"
+            disabled={publishing}
+            onClick={() => {
+              setError("");
+              setStep((current) => current - 1);
+            }}
+            className="min-h-12 flex-1 rounded-full bg-zinc-100 px-5 text-sm font-black text-zinc-800 disabled:opacity-50"
+          >
+            Back
+          </button>
+        ) : null}
         <button
           type="button"
           disabled={publishing}
-          onClick={() => {
-            setError("");
-            setStep((current) => current - 1);
-          }}
-          className="min-h-12 flex-1 rounded-full bg-zinc-100 px-5 text-sm font-black text-zinc-800 disabled:opacity-50"
+          onClick={step === steps.length - 1 ? () => void publish() : next}
+          className="inline-flex min-h-12 flex-[2] items-center justify-center gap-2 rounded-full bg-[#d62976] px-5 text-sm font-black text-white disabled:opacity-50"
         >
-          Back
+          {step === steps.length - 1 ? (
+            <>
+              <Send className="size-4" />
+              {publishing
+                ? uploadProgress !== null && uploadProgress < 100
+                  ? `Uploading ${uploadProgress}%`
+                  : "Publishing..."
+                : "Publish Post"}
+            </>
+          ) : (
+            "Continue"
+          )}
         </button>
-      ) : null}
-      <button
-        type="button"
-        disabled={publishing}
-        onClick={step === steps.length - 1 ? () => void publish() : next}
-        className="inline-flex min-h-12 flex-[2] items-center justify-center gap-2 rounded-full bg-[#d62976] px-5 text-sm font-black text-white disabled:opacity-50"
-      >
-        {step === steps.length - 1 ? (
-          <>
-            <Send className="size-4" />
-            {publishing ? "Publishing..." : "Publish Post"}
-          </>
-        ) : (
-          "Continue"
-        )}
-      </button>
+      </div>
     </div>
   );
 

@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { PackageCheck, Plus, Tag } from "lucide-react";
 import type { CategoryItem, Product } from "@/lib/types";
-import { apiFetch } from "@/lib/api-url";
+import { uploadFormData } from "@/lib/multipart-upload";
 import { formatPrice } from "@/lib/utils";
 import { MobileWizardShell } from "@/components/profile/mobile-wizard-shell";
+import { WizardUploadProgress } from "@/components/profile/wizard-upload-progress";
 import {
   clearWizardMedia,
   WizardMediaPicker,
@@ -95,6 +96,7 @@ export function ProductCreateWizard({
   const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const generatedSlug = useMemo(() => slugify(draft.name), [draft.name]);
   const category = categories.find((item) => item.id === draft.categoryId);
   const price = Number(draft.price || 0);
@@ -217,6 +219,7 @@ export function ProductCreateWizard({
       return;
     }
     setCreating(true);
+    setUploadProgress(0);
     setError("");
     try {
       const formData = new FormData();
@@ -236,12 +239,13 @@ export function ProductCreateWizard({
       formData.set("images", "[]");
       formData.set("primaryMediaIndex", "0");
       media.forEach((item) => formData.append("media", item.file));
-      const response = await apiFetch("/api/v1/products", {
-        method: "POST",
-        body: formData,
-      });
-      const body = (await response.json()) as ApiEnvelope<Product>;
-      if (!response.ok || !body.success || !body.data) {
+      const { status, body } = await uploadFormData<ApiEnvelope<Product>>(
+        "/api/v1/products",
+        formData,
+        setUploadProgress,
+      );
+      if (status < 200 || status >= 300 || !body.success || !body.data) {
+        setUploadProgress(null);
         setError(body.error?.message ?? "Product could not be created.");
         return;
       }
@@ -251,6 +255,7 @@ export function ProductCreateWizard({
       router.refresh();
       onClose();
     } catch {
+      setUploadProgress(null);
       setError("Could not reach the product service.");
     } finally {
       setCreating(false);
@@ -258,35 +263,44 @@ export function ProductCreateWizard({
   }
 
   const footer = (
-    <div className="flex gap-3">
-      {step > 0 ? (
+    <div>
+      <WizardUploadProgress progress={uploadProgress} action="Product" />
+      <div className="flex gap-3">
+        {step > 0 ? (
+          <button
+            type="button"
+            disabled={creating}
+            onClick={() => {
+              setError("");
+              setStep((current) => current - 1);
+            }}
+            className="min-h-12 flex-1 rounded-full bg-zinc-100 px-5 text-sm font-black disabled:opacity-50"
+          >
+            Back
+          </button>
+        ) : null}
         <button
           type="button"
           disabled={creating}
-          onClick={() => {
-            setError("");
-            setStep((current) => current - 1);
-          }}
-          className="min-h-12 flex-1 rounded-full bg-zinc-100 px-5 text-sm font-black disabled:opacity-50"
+          onClick={
+            step === steps.length - 1 ? () => void createProduct() : next
+          }
+          className="inline-flex min-h-12 flex-[2] items-center justify-center gap-2 rounded-full bg-[#d62976] px-5 text-sm font-black text-white disabled:opacity-50"
         >
-          Back
+          {step === steps.length - 1 ? (
+            <>
+              <Plus className="size-4" />
+              {creating
+                ? uploadProgress !== null && uploadProgress < 100
+                  ? `Uploading ${uploadProgress}%`
+                  : "Creating..."
+                : "Create Product"}
+            </>
+          ) : (
+            "Continue"
+          )}
         </button>
-      ) : null}
-      <button
-        type="button"
-        disabled={creating}
-        onClick={step === steps.length - 1 ? () => void createProduct() : next}
-        className="inline-flex min-h-12 flex-[2] items-center justify-center gap-2 rounded-full bg-[#d62976] px-5 text-sm font-black text-white disabled:opacity-50"
-      >
-        {step === steps.length - 1 ? (
-          <>
-            <Plus className="size-4" />
-            {creating ? "Creating..." : "Create Product"}
-          </>
-        ) : (
-          "Continue"
-        )}
-      </button>
+      </div>
     </div>
   );
 

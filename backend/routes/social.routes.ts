@@ -4,7 +4,11 @@ import { Router } from "express";
 import { commentSchema, postCreateSchema } from "../../lib/validation/schemas";
 import { Comment, Follow, Like, Post, Product, User } from "../models";
 import { requireAuth } from "../middleware/auth";
-import { postUpload, publicUploadUrl } from "../middleware/upload";
+import {
+  postUpload,
+  publicUploadUrl,
+  uploadedMediaType,
+} from "../middleware/upload";
 import { productPopulate } from "../services/catalog.service";
 import { AppError, slugify, stringId, success } from "../utils/http";
 import { mapPost, mapProduct, mapUser } from "../utils/mappers";
@@ -67,7 +71,7 @@ socialRouter.post("/posts", requireAuth, postUpload, async (req, res) => {
     status: "PUBLISHED",
     media: files.map((file, index) => ({
       url: publicUploadUrl("posts", file.filename),
-      type: file.mimetype.startsWith("video/") ? "video" : "image",
+      type: uploadedMediaType(file),
       fileName: file.originalname,
       order: index,
       isPrimary: index === 0,

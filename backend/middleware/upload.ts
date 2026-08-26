@@ -4,6 +4,38 @@ import path from "node:path";
 import multer from "multer";
 import { env } from "../config/env";
 
+const imageExtensions = new Set([
+  ".avif",
+  ".gif",
+  ".heic",
+  ".heif",
+  ".jpeg",
+  ".jpg",
+  ".png",
+  ".webp",
+]);
+const videoExtensions = new Set([
+  ".3gp",
+  ".m4v",
+  ".mkv",
+  ".mov",
+  ".mp4",
+  ".webm",
+]);
+
+function mediaKind(file: Express.Multer.File) {
+  const extension = path.extname(file.originalname).toLowerCase();
+  if (file.mimetype.startsWith("video/") || videoExtensions.has(extension))
+    return "video" as const;
+  if (file.mimetype.startsWith("image/") || imageExtensions.has(extension))
+    return "image" as const;
+  return null;
+}
+
+export function uploadedMediaType(file: Express.Multer.File) {
+  return mediaKind(file) === "video" ? "video" : "image";
+}
+
 function uploader(
   folder: string,
   maxFiles: number,
@@ -25,10 +57,7 @@ function uploader(
     fileFilter: (_req, file, done) =>
       done(
         null,
-        imageOnly
-          ? file.mimetype.startsWith("image/")
-          : file.mimetype.startsWith("image/") ||
-              file.mimetype.startsWith("video/"),
+        imageOnly ? mediaKind(file) === "image" : mediaKind(file) !== null,
       ),
   });
 }

@@ -9,15 +9,24 @@ export type WizardMedia = {
   type: "image" | "video";
 };
 
+const imageExtensions = /\.(avif|gif|heic|heif|jpe?g|png|webp)$/i;
+const videoExtensions = /\.(3gp|m4v|mkv|mov|mp4|webm)$/i;
+
+function getMediaType(file: File): WizardMedia["type"] | null {
+  if (file.type.startsWith("image/") || imageExtensions.test(file.name))
+    return "image";
+  if (file.type.startsWith("video/") || videoExtensions.test(file.name))
+    return "video";
+  return null;
+}
+
 export function addWizardMedia(
   current: WizardMedia[],
   files: FileList | null,
 ): { media: WizardMedia[]; error: string } {
   if (!files?.length) return { media: current, error: "" };
   const accepted = Array.from(files).filter(
-    (file) =>
-      (file.type.startsWith("image/") || file.type.startsWith("video/")) &&
-      file.size <= 50 * 1024 * 1024,
+    (file) => getMediaType(file) && file.size <= 50 * 1024 * 1024,
   );
   if (current.length + accepted.length > 8)
     return { media: current, error: "You can add up to 8 media files." };
@@ -34,9 +43,7 @@ export function addWizardMedia(
         id: crypto.randomUUID(),
         file,
         previewUrl: URL.createObjectURL(file),
-        type: file.type.startsWith("video/")
-          ? ("video" as const)
-          : ("image" as const),
+        type: getMediaType(file) ?? "image",
       })),
     ],
   };

@@ -5,8 +5,12 @@ import {
   productCreateSchema,
 } from "../../lib/validation/schemas";
 import { Product, Post, User } from "../models";
-import { requireManager } from "../middleware/auth";
-import { productUpload, publicUploadUrl } from "../middleware/upload";
+import { requireAuth, requireManager } from "../middleware/auth";
+import {
+  productUpload,
+  publicUploadUrl,
+  uploadedMediaType,
+} from "../middleware/upload";
 import {
   parseProductBody,
   productPopulate,
@@ -34,7 +38,7 @@ async function productAccess(
 function mediaFromFiles(files: Express.Multer.File[], primaryIndex: number) {
   return files.map((file, index) => ({
     url: publicUploadUrl("products", file.filename),
-    type: file.mimetype.startsWith("video/") ? "video" : "image",
+    type: uploadedMediaType(file),
     fileName: file.originalname,
     order: index,
     isPrimary: index === Math.min(primaryIndex, Math.max(files.length - 1, 0)),
@@ -58,7 +62,7 @@ catalogRouter.get("/products", async (req, res) => {
 });
 catalogRouter.post(
   "/products",
-  requireManager,
+  requireAuth,
   productUpload,
   async (req, res) => {
     const parsed = productCreateSchema.safeParse(parseProductBody(req.body));
