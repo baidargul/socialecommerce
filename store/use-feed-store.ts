@@ -5,7 +5,9 @@ import type { FeedPost } from "@/lib/types";
 
 type FeedState = {
   posts: FeedPost[];
+  hiddenPostIds: string[];
   setPosts: (posts: FeedPost[]) => void;
+  removePost: (postId: string) => void;
   toggleLike: (postId: string) => void;
   incrementComments: (postId: string) => void;
   incrementShares: (postId: string) => void;
@@ -13,7 +15,21 @@ type FeedState = {
 
 export const useFeedStore = create<FeedState>((set) => ({
   posts: [],
-  setPosts: (posts) => set({ posts }),
+  hiddenPostIds: [],
+  setPosts: (posts) =>
+    set((state) => ({
+      posts,
+      hiddenPostIds: state.hiddenPostIds.filter((postId) =>
+        posts.some((post) => post.id === postId),
+      ),
+    })),
+  removePost: (postId) =>
+    set((state) => ({
+      posts: state.posts.filter((post) => post.id !== postId),
+      hiddenPostIds: state.hiddenPostIds.includes(postId)
+        ? state.hiddenPostIds
+        : [...state.hiddenPostIds, postId],
+    })),
   toggleLike: (postId) =>
     set((state) => ({
       posts: state.posts.map((post) =>

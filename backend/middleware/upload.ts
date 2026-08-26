@@ -78,3 +78,24 @@ export const avatarUpload = uploader(
 export function publicUploadUrl(folder: string, filename: string) {
   return `${env.publicApiUrl}/uploads/${folder}/${filename}`;
 }
+
+export async function removeUploadedFiles(folder: string, urls: string[]) {
+  const uploadFolder = path.resolve(env.uploadDir, folder);
+  await Promise.allSettled(
+    urls.map(async (url) => {
+      let filename = "";
+      try {
+        filename = path.basename(decodeURIComponent(new URL(url).pathname));
+      } catch {
+        return;
+      }
+      const target = path.resolve(uploadFolder, filename);
+      if (path.dirname(target) !== uploadFolder) return;
+      try {
+        await fs.promises.unlink(target);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }),
+  );
+}

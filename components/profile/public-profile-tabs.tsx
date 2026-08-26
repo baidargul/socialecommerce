@@ -68,7 +68,15 @@ export function PublicProfileTabs({
         profilePosts.length ? (
           <div>
             {profilePosts.map((post) => (
-              <FeedPostCard key={post.id} post={post} />
+              <FeedPostCard
+                key={post.id}
+                post={post}
+                onDeleted={(postId) =>
+                  setProfilePosts((current) =>
+                    current.filter((item) => item.id !== postId),
+                  )
+                }
+              />
             ))}
           </div>
         ) : (

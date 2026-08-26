@@ -16,15 +16,17 @@ export function HomeFeed({
   stories: Story[];
 }) {
   const storePosts = useFeedStore((state) => state.posts);
+  const hiddenPostIds = useFeedStore((state) => state.hiddenPostIds);
   const setPosts = useFeedStore((state) => state.setPosts);
 
   useEffect(() => {
     setPosts(posts);
   }, [posts, setPosts]);
 
-  const postIds = posts.map((post) => post.id).join(",");
+  const visiblePosts = posts.filter((post) => !hiddenPostIds.includes(post.id));
+  const postIds = visiblePosts.map((post) => post.id).join(",");
   const storePostIds = storePosts.map((post) => post.id).join(",");
-  const renderedPosts = postIds === storePostIds ? storePosts : posts;
+  const renderedPosts = postIds === storePostIds ? storePosts : visiblePosts;
 
   return (
     <>

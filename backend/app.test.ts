@@ -166,6 +166,53 @@ describe("backend API", () => {
       .expect(200);
     expect(profile.body.data.stats.posts).toBe(2);
     expect(profile.body.data.posts).toHaveLength(2);
+
+    const uploadedFile = path.join(
+      testUploadDir,
+      "posts",
+      path.basename(new URL(withMedia.body.data.media[0].url).pathname),
+    );
+    expect(fs.existsSync(uploadedFile)).toBe(true);
+    await models.Comment.create({
+      postId: withMedia.body.data.id,
+      userId: signup.body.data.user.id,
+      text: "Delete this comment with the post",
+    });
+    await models.Like.create({
+      postId: withMedia.body.data.id,
+      userId: signup.body.data.user.id,
+    });
+    await request(app)
+      .delete(`/api/v1/posts/${withMedia.body.data.id}`)
+      .expect(401);
+    const intruder = request.agent(app);
+    await intruder
+      .post("/api/v1/auth/signup")
+      .send({
+        name: "Post Intruder",
+        username: "post_intruder",
+        email: "post-intruder@example.com",
+        password: "password123",
+      })
+      .expect(200);
+    await intruder
+      .delete(`/api/v1/posts/${withMedia.body.data.id}`)
+      .expect(403);
+    await owner.delete(`/api/v1/posts/${withMedia.body.data.id}`).expect(200);
+    expect(await models.Post.findById(withMedia.body.data.id)).toBeNull();
+    expect(
+      await models.Comment.countDocuments({ postId: withMedia.body.data.id }),
+    ).toBe(0);
+    expect(
+      await models.Like.countDocuments({ postId: withMedia.body.data.id }),
+    ).toBe(0);
+    expect(fs.existsSync(uploadedFile)).toBe(false);
+
+    const profileAfterDelete = await request(app)
+      .get(`/api/v1/profiles/${signup.body.data.user.username}`)
+      .expect(200);
+    expect(profileAfterDelete.body.data.stats.posts).toBe(1);
+    expect(profileAfterDelete.body.data.posts).toHaveLength(1);
   });
   it("lets an authenticated customer create a product with Android-style media", async () => {
     await request(app).post("/api/v1/auth/signup").send({

@@ -7,6 +7,7 @@ import { requireAuth } from "../middleware/auth";
 import {
   postUpload,
   publicUploadUrl,
+  removeUploadedFiles,
   uploadedMediaType,
 } from "../middleware/upload";
 import { productPopulate } from "../services/catalog.service";
@@ -107,6 +108,25 @@ socialRouter.get("/posts/slug/:slug", async (req, res) => {
   );
   if (!post) throw new AppError(404, "NOT_FOUND", "Post was not found.");
   return success(req, res, mapPost(post));
+});
+socialRouter.delete("/posts/:id", requireAuth, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post) throw new AppError(404, "NOT_FOUND", "Post was not found.");
+  if (stringId(post.creatorId) !== req.authUser!.id)
+    throw new AppError(403, "FORBIDDEN", "You can only delete your own posts.");
+
+  await Promise.all([
+    Comment.deleteMany({ postId: post.id }),
+    Like.deleteMany({ postId: post.id }),
+    Post.deleteOne({ _id: post.id }),
+  ]);
+  await removeUploadedFiles(
+    "posts",
+    post.media
+      .map((item: { url?: string }) => item.url)
+      .filter(Boolean) as string[],
+  );
+  return success(req, res, { postId: post.id, deleted: true });
 });
 socialRouter.get("/stories", async (req, res) => {
   const posts = await Post.find({

@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Heart,
   MessageCircle,
   MoreHorizontal,
   Send,
   ShoppingBag,
+  Trash2,
 } from "lucide-react";
 import type { FeedPost } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/utils";
@@ -19,13 +22,55 @@ import { ProductMediaCarousel } from "@/components/feed/product-media-carousel";
 import { useFeedStore } from "@/store/use-feed-store";
 import { useSheetStore } from "@/store/use-sheet-store";
 import { apiFetch } from "@/lib/api-url";
+import { useAuthStore } from "@/store/use-auth-store";
 
-export function FeedPostCard({ post }: { post: FeedPost }) {
+export function FeedPostCard({
+  post,
+  onDeleted,
+}: {
+  post: FeedPost;
+  onDeleted?: (postId: string) => void;
+}) {
+  const router = useRouter();
   const { requireAuth } = useAuthGuard();
+  const user = useAuthStore((state) => state.user);
   const toggleLike = useFeedStore((state) => state.toggleLike);
+  const removePost = useFeedStore((state) => state.removePost);
   const openComments = useSheetStore((state) => state.openComments);
   const openCheckout = useSheetStore((state) => state.openCheckout);
   const openShare = useSheetStore((state) => state.openShare);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const isOwner = user?.id === post.creator.id;
+
+  async function deletePost() {
+    if (deleting || !isOwner) return;
+    if (!window.confirm("Delete this post permanently?")) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const response = await apiFetch(`/api/v1/posts/${post.id}`, {
+        method: "DELETE",
+      });
+      const body = (await response.json()) as {
+        success: boolean;
+        error: { message: string } | null;
+      };
+      if (!response.ok || !body.success) {
+        setDeleteError(body.error?.message ?? "Post could not be deleted.");
+        return;
+      }
+      setOptionsOpen(false);
+      removePost(post.id);
+      onDeleted?.(post.id);
+      router.refresh();
+    } catch {
+      setDeleteError("Could not reach the post service.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <article className="border-b border-zinc-100 pb-10">
@@ -41,10 +86,61 @@ export function FeedPostCard({ post }: { post: FeedPost }) {
           />
           <p className="text-[18px] font-black">{post.creator.username}</p>
         </Link>
-        <IconButton
-          label="Post options"
-          icon={<MoreHorizontal className="size-6" />}
-        />
+        <div className="relative">
+          <IconButton
+            label="Post options"
+            aria-expanded={optionsOpen}
+            aria-haspopup="menu"
+            icon={<MoreHorizontal className="size-6" />}
+            onClick={() => {
+              setDeleteError("");
+              setOptionsOpen((current) => !current);
+            }}
+          />
+          {optionsOpen ? (
+            <>
+              <button
+                type="button"
+                aria-label="Close post options"
+                className="fixed inset-0 z-20 cursor-default"
+                onClick={() => setOptionsOpen(false)}
+              />
+              <div
+                role="menu"
+                className="absolute right-0 top-11 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-100 bg-white p-1.5 shadow-xl"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOptionsOpen(false);
+                    openShare(post);
+                  }}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-zinc-800 active:bg-zinc-100"
+                >
+                  <Send className="size-4" /> Share post
+                </button>
+                {isOwner ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={deleting}
+                    onClick={() => void deletePost()}
+                    className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-black text-red-600 active:bg-red-50 disabled:opacity-50"
+                  >
+                    <Trash2 className="size-4" />
+                    {deleting ? "Deleting..." : "Delete post"}
+                  </button>
+                ) : null}
+                {deleteError ? (
+                  <p className="px-3 py-2 text-xs font-bold text-red-600">
+                    {deleteError}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+        </div>
       </header>
 
       <ProductMediaCarousel key={post.id} media={post.media} alt={post.caption}>
