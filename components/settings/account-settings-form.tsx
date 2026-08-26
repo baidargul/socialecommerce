@@ -274,7 +274,10 @@ export function AccountSettingsForm({
             <button
               key={tab.key}
               className={cn(
-                "grid min-h-16 place-items-center gap-1 rounded px-2 text-center text-xs font-black transition sm:flex sm:min-h-12 sm:justify-center sm:gap-2 sm:text-sm",
+                "min-w-0 rounded text-center font-black transition",
+                variant === "account"
+                  ? "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px]"
+                  : "grid min-h-16 place-items-center gap-1 px-2 text-xs sm:flex sm:min-h-12 sm:justify-center sm:gap-2 sm:text-sm",
                 isActive
                   ? "bg-zinc-950 text-white"
                   : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950",
@@ -288,7 +291,8 @@ export function AccountSettingsForm({
               </span>
               <span
                 className={cn(
-                  "text-[10px] font-black sm:text-xs",
+                  "max-w-full truncate text-[10px] font-black",
+                  variant === "vendor" && "sm:text-xs",
                   isActive ? "text-white/75" : "text-zinc-400",
                 )}
               >
@@ -300,8 +304,18 @@ export function AccountSettingsForm({
       </div>
 
       {activeTab === "profile" ? (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-lg border border-zinc-200 bg-white p-5">
+        <div
+          className={cn(
+            "grid min-w-0 gap-5",
+            variant === "vendor" && "xl:grid-cols-[minmax(0,1fr)_360px]",
+          )}
+        >
+          <div
+            className={cn(
+              "min-w-0 rounded-lg border border-zinc-200 bg-white",
+              variant === "account" ? "p-4" : "p-5",
+            )}
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -324,7 +338,12 @@ export function AccountSettingsForm({
               </span>
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div
+              className={cn(
+                "mt-5 grid min-w-0 gap-4",
+                variant === "vendor" && "md:grid-cols-2",
+              )}
+            >
               <TextInput
                 label="Name"
                 value={form.name}
@@ -348,7 +367,12 @@ export function AccountSettingsForm({
                 value={form.phone}
                 onChange={(event) => updateField("phone", event.target.value)}
               />
-              <label className="grid gap-2 text-sm font-semibold text-zinc-900 md:col-span-2">
+              <label
+                className={cn(
+                  "grid min-w-0 gap-2 text-sm font-semibold text-zinc-900",
+                  variant === "vendor" && "md:col-span-2",
+                )}
+              >
                 Bio
                 <textarea
                   className="min-h-28 resize-y rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base font-medium outline-none transition placeholder:text-zinc-400 focus:border-zinc-900"
@@ -375,8 +399,9 @@ export function AccountSettingsForm({
               </p>
             ) : null}
 
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
               <Button
+                className="w-full sm:w-auto"
                 icon={<Save className="size-4" />}
                 loading={profileStatus === "saving"}
                 disabled={!isDirty || profileStatus === "saving"}
@@ -385,6 +410,7 @@ export function AccountSettingsForm({
                 Save Changes
               </Button>
               <Button
+                className="w-full sm:w-auto"
                 intent="secondary"
                 icon={<RefreshCcw className="size-4" />}
                 disabled={!isDirty || profileStatus === "saving"}
@@ -395,13 +421,18 @@ export function AccountSettingsForm({
             </div>
           </div>
 
-          <div className="grid gap-5">
-            <section className="rounded-lg border border-zinc-200 bg-white p-5">
+          <div className="grid min-w-0 gap-5">
+            <section
+              className={cn(
+                "min-w-0 rounded-lg border border-zinc-200 bg-white",
+                variant === "account" ? "p-4" : "p-5",
+              )}
+            >
               <div className="flex items-center gap-2">
                 <Eye className="size-5 text-zinc-500" />
                 <h2 className="text-xl font-black">Live Preview</h2>
               </div>
-              <div className="mt-5 rounded-lg border border-zinc-100 bg-zinc-50 p-4">
+              <div className="mt-5 min-w-0 rounded-lg border border-zinc-100 bg-zinc-50 p-4">
                 <div className="flex items-center gap-3">
                   <label className="group relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-zinc-200 text-base font-black text-zinc-500 ring-4 ring-white transition hover:ring-[#fff1f7]">
                     {previewImageUrl ? (
@@ -468,7 +499,12 @@ export function AccountSettingsForm({
               </div>
             </section>
 
-            <section className="rounded-lg border border-zinc-200 bg-white p-5">
+            <section
+              className={cn(
+                "min-w-0 rounded-lg border border-zinc-200 bg-white",
+                variant === "account" ? "p-4" : "p-5",
+              )}
+            >
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-black">Completion</h2>
                 <span className="text-2xl font-black text-[#1768d8]">
@@ -505,12 +541,22 @@ export function AccountSettingsForm({
       ) : null}
 
       {activeTab === "security" ? (
-        <div className="rounded-lg border border-zinc-200 bg-white p-5">
+        <div
+          className={cn(
+            "min-w-0 rounded-lg border border-zinc-200 bg-white",
+            variant === "account" ? "p-4" : "p-5",
+          )}
+        >
           <div className="flex items-center gap-2">
             <KeyRound className="size-5 text-zinc-500" />
             <h2 className="text-xl font-black">Password</h2>
           </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div
+            className={cn(
+              "mt-5 grid min-w-0 gap-4",
+              variant === "vendor" && "md:grid-cols-3",
+            )}
+          >
             <TextInput
               label="Current password"
               type="password"
@@ -568,7 +614,9 @@ export function AccountSettingsForm({
         </div>
       ) : null}
 
-      {activeTab === "addresses" ? <AddressBookManager /> : null}
+      {activeTab === "addresses" ? (
+        <AddressBookManager compact={variant === "account"} />
+      ) : null}
     </div>
   );
 }

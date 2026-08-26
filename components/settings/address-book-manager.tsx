@@ -54,7 +54,7 @@ function addressToForm(address: UserAddress): AddressInput {
   };
 }
 
-export function AddressBookManager() {
+export function AddressBookManager({ compact = false }: { compact?: boolean }) {
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [form, setForm] = useState<AddressInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -205,8 +205,18 @@ export function AddressBookManager() {
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+    <div
+      className={cn(
+        "grid min-w-0 gap-5",
+        !compact && "xl:grid-cols-[minmax(0,1fr)_360px]",
+      )}
+    >
+      <section
+        className={cn(
+          "min-w-0 rounded-lg border border-zinc-200 bg-white",
+          compact ? "p-4" : "p-5",
+        )}
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -301,7 +311,12 @@ export function AddressBookManager() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+      <section
+        className={cn(
+          "min-w-0 rounded-lg border border-zinc-200 bg-white",
+          compact ? "p-4" : "p-5",
+        )}
+      >
         <div className="flex items-center gap-2">
           <Plus className="size-5 text-zinc-500" />
           <h2 className="text-xl font-black">
@@ -330,7 +345,7 @@ export function AddressBookManager() {
             value={form.addressLine}
             onChange={(event) => updateField("addressLine", event.target.value)}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className={cn("grid gap-3", !compact && "grid-cols-2")}>
             <TextInput
               label="City"
               value={form.city}
@@ -342,7 +357,7 @@ export function AddressBookManager() {
               onChange={(event) => updateField("state", event.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className={cn("grid gap-3", !compact && "grid-cols-2")}>
             <TextInput
               label="Country"
               value={form.country}
