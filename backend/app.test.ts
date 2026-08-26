@@ -249,6 +249,43 @@ describe("backend API", () => {
     expect(created.body.data.vendorId).toBe(signup.body.data.user.id);
     expect(created.body.data.media).toHaveLength(1);
     expect(created.body.data.media[0].type).toBe("image");
+    expect(created.body.data.createdAt).toBeTruthy();
+
+    const uploadedFile = path.join(
+      testUploadDir,
+      "products",
+      path.basename(new URL(created.body.data.images[0]).pathname),
+    );
+    expect(fs.existsSync(uploadedFile)).toBe(true);
+    await models.CartItem.create({
+      userId: signup.body.data.user.id,
+      productId: created.body.data.id,
+      quantity: 1,
+    });
+    await request(app)
+      .delete(`/api/v1/products/${created.body.data.id}`)
+      .expect(401);
+    const intruder = request.agent(app);
+    await intruder
+      .post("/api/v1/auth/signup")
+      .send({
+        name: "Product Intruder",
+        username: "product_intruder",
+        email: "product-intruder@example.com",
+        password: "password123",
+      })
+      .expect(200);
+    await intruder
+      .delete(`/api/v1/products/${created.body.data.id}`)
+      .expect(403);
+    await customer
+      .delete(`/api/v1/products/${created.body.data.id}`)
+      .expect(200);
+    expect(await models.Product.findById(created.body.data.id)).toBeNull();
+    expect(
+      await models.CartItem.countDocuments({ productId: created.body.data.id }),
+    ).toBe(0);
+    expect(fs.existsSync(uploadedFile)).toBe(false);
   });
   it("searches published posts, products, and users without exposing email", async () => {
     const user = await models.User.create({

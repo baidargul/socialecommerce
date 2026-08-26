@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Search, ShoppingBag, UserRound } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/use-cart-store";
 
@@ -15,6 +16,7 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
   const cartCount = useCartStore((state) =>
     state.items.reduce((sum, item) => sum + item.quantity, 0),
   );
@@ -34,19 +36,35 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "grid justify-items-center gap-1 rounded-xl py-1 text-xs font-bold transition",
+                "relative grid justify-items-center gap-1 rounded-xl py-1 text-xs font-bold transition-colors duration-150",
                 active ? "text-zinc-950" : "text-zinc-500",
               )}
             >
-              <span className="relative">
+              {active ? (
+                <motion.span
+                  layoutId="bottom-nav-active"
+                  className="absolute inset-x-1 inset-y-0 rounded-xl bg-zinc-100"
+                  transition={
+                    reduceMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 480, damping: 36 }
+                  }
+                />
+              ) : null}
+              <motion.span
+                className="relative z-10"
+                animate={{ y: active && !reduceMotion ? -1 : 0 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.88 }}
+                transition={{ duration: 0.14 }}
+              >
                 <Icon className="size-7" strokeWidth={active ? 2.5 : 2.2} />
                 {item.href === "/cart" && cartCount > 0 ? (
                   <span className="absolute -right-2 -top-2 grid min-w-5 place-items-center rounded-full bg-[#d62976] px-1 text-[10px] font-black leading-5 text-white ring-2 ring-white">
                     {cartBadge}
                   </span>
                 ) : null}
-              </span>
-              <span>{item.label}</span>
+              </motion.span>
+              <span className="relative z-10">{item.label}</span>
             </Link>
           );
         })}

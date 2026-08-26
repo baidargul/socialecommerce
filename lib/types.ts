@@ -18,7 +18,13 @@ export type Product = {
   description: string;
   shortDescription: string;
   images: string[];
-  media?: { url: string; type: "image" | "video"; fileName?: string; order: number; isPrimary: boolean }[];
+  media?: {
+    url: string;
+    type: "image" | "video";
+    fileName?: string;
+    order: number;
+    isPrimary: boolean;
+  }[];
   category: string;
   price: number;
   originalPrice?: number;
@@ -28,6 +34,7 @@ export type Product = {
   status: "ACTIVE" | "OUT_OF_STOCK";
   tags: string[];
   vendorName: string;
+  createdAt?: string;
 };
 
 export type FeedPost = {
@@ -36,12 +43,18 @@ export type FeedPost = {
   creator: DemoUser;
   caption: string;
   hashtags: string[];
-  media: { url: string; type: "image" | "video"; width: number; height: number }[];
+  media: {
+    url: string;
+    type: "image" | "video";
+    width: number;
+    height: number;
+  }[];
   product?: Product;
   likeCount: number;
   commentCount: number;
   shareCount: number;
   isLiked?: boolean;
+  createdAt?: string;
 };
 
 export type Story = {
@@ -103,7 +116,14 @@ export type OrderItem = {
 export type OrderSummary = {
   id: string;
   userId: string;
-  status: "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "REFUNDED";
+  status:
+    | "PENDING"
+    | "CONFIRMED"
+    | "PROCESSING"
+    | "SHIPPED"
+    | "DELIVERED"
+    | "CANCELLED"
+    | "REFUNDED";
   subtotal: number;
   shippingAmount: number;
   discountAmount: number;

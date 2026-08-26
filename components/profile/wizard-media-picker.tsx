@@ -20,6 +20,16 @@ function getMediaType(file: File): WizardMedia["type"] | null {
   return null;
 }
 
+function createMediaId(file: File, index: number) {
+  return [
+    "media",
+    Date.now(),
+    file.lastModified,
+    index,
+    Math.random().toString(36).slice(2),
+  ].join("-");
+}
+
 export function addWizardMedia(
   current: WizardMedia[],
   files: FileList | null,
@@ -39,8 +49,8 @@ export function addWizardMedia(
     error: "",
     media: [
       ...current,
-      ...accepted.map((file) => ({
-        id: crypto.randomUUID(),
+      ...accepted.map((file, index) => ({
+        id: createMediaId(file, index),
         file,
         previewUrl: URL.createObjectURL(file),
         type: getMediaType(file) ?? "image",
@@ -88,8 +98,15 @@ export function WizardMediaPicker({
           accept="image/*,video/*"
           className="sr-only"
           onChange={(event) => {
-            const result = addWizardMedia(media, event.target.files);
-            onChange(result.media, result.error);
+            try {
+              const result = addWizardMedia(media, event.target.files);
+              onChange(result.media, result.error);
+            } catch {
+              onChange(
+                media,
+                "Selected media could not be read. Please choose it again.",
+              );
+            }
             event.target.value = "";
           }}
         />

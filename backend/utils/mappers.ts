@@ -44,6 +44,9 @@ export function mapProduct(product: any) {
     status: product.status === "OUT_OF_STOCK" ? "OUT_OF_STOCK" : "ACTIVE",
     tags: product.tags ?? [],
     vendorName: vendor?.username ?? "",
+    createdAt: product.createdAt
+      ? new Date(product.createdAt).toISOString()
+      : undefined,
   };
 }
 export function mapPost(post: any) {
@@ -67,6 +70,9 @@ export function mapPost(post: any) {
     commentCount: post.commentCount ?? 0,
     shareCount: post.shareCount ?? 0,
     isLiked: Boolean(post.isLiked),
+    createdAt: post.createdAt
+      ? new Date(post.createdAt).toISOString()
+      : undefined,
   };
 }
 export function mapOrder(order: any) {

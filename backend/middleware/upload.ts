@@ -81,11 +81,19 @@ export function publicUploadUrl(folder: string, filename: string) {
 
 export async function removeUploadedFiles(folder: string, urls: string[]) {
   const uploadFolder = path.resolve(env.uploadDir, folder);
+  const publicOrigin = new URL(env.publicApiUrl).origin;
+  const publicPathPrefix = `/uploads/${folder}/`;
   await Promise.allSettled(
     urls.map(async (url) => {
       let filename = "";
       try {
-        filename = path.basename(decodeURIComponent(new URL(url).pathname));
+        const parsedUrl = new URL(url);
+        if (
+          parsedUrl.origin !== publicOrigin ||
+          !parsedUrl.pathname.startsWith(publicPathPrefix)
+        )
+          return;
+        filename = path.basename(decodeURIComponent(parsedUrl.pathname));
       } catch {
         return;
       }

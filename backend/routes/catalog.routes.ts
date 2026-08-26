@@ -4,11 +4,12 @@ import {
   productBatchSchema,
   productCreateSchema,
 } from "../../lib/validation/schemas";
-import { Product, Post, User } from "../models";
+import { CartItem, Product, Post, User } from "../models";
 import { requireAuth, requireManager } from "../middleware/auth";
 import {
   productUpload,
   publicUploadUrl,
+  removeUploadedFiles,
   uploadedMediaType,
 } from "../middleware/upload";
 import {
@@ -231,13 +232,18 @@ catalogRouter.patch(
     return success(req, res, mapProduct(current));
   },
 );
-catalogRouter.delete("/products/:id", requireManager, async (req, res) => {
-  await productAccess(req.params.id, req.authUser!);
-  await Post.updateMany(
-    { productId: req.params.id },
-    { $unset: { productId: 1 } },
-  );
-  await Product.findByIdAndDelete(req.params.id);
+catalogRouter.delete("/products/:id", requireAuth, async (req, res) => {
+  const product = await productAccess(req.params.id, req.authUser!);
+  const mediaUrls = [
+    ...product.images,
+    ...product.media.map((item: { url?: string }) => item.url),
+  ].filter(Boolean) as string[];
+  await Promise.all([
+    Post.updateMany({ productId: req.params.id }, { $unset: { productId: 1 } }),
+    CartItem.deleteMany({ productId: req.params.id }),
+    Product.findByIdAndDelete(req.params.id),
+  ]);
+  await removeUploadedFiles("products", [...new Set(mediaUrls)]);
   return success(req, res, { deleted: true, productId: req.params.id });
 });
 catalogRouter.get("/search", async (req, res) => {
