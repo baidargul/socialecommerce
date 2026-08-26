@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, X } from "lucide-react";
 
 export function MobileWizardShell({
@@ -24,6 +25,8 @@ export function MobileWizardShell({
   footer: ReactNode;
   children: ReactNode;
 }) {
+  const portalRoot = typeof document === "undefined" ? null : document.body;
+
   const requestClose = useCallback(() => {
     if (busy) return;
     if (dirty && !window.confirm("Discard your changes?")) return;
@@ -43,8 +46,15 @@ export function MobileWizardShell({
     };
   }, [requestClose]);
 
-  return (
-    <div className="fixed inset-0 z-50 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-white text-zinc-950 shadow-2xl">
+  if (!portalRoot) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] mx-auto flex h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-white text-zinc-950 shadow-2xl"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <header className="shrink-0 border-b border-zinc-100 bg-white px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)]">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -87,13 +97,14 @@ export function MobileWizardShell({
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+      <main className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 py-5">
         {children}
       </main>
 
       <footer className="shrink-0 border-t border-zinc-100 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3">
         {footer}
       </footer>
-    </div>
+    </div>,
+    portalRoot,
   );
 }
