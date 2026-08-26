@@ -36,6 +36,10 @@ export const productUpload = uploader("products", 8, 50 * 1024 * 1024).array(
   "media",
   8,
 );
+export const postUpload = uploader("posts", 8, 50 * 1024 * 1024).array(
+  "media",
+  8,
+);
 export const avatarUpload = uploader(
   "profiles",
   1,

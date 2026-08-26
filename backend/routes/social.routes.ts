@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- populated social documents are normalized at this HTTP boundary. */
+import crypto from "node:crypto";
 import { Router } from "express";
-import { commentSchema } from "../../lib/validation/schemas";
+import { commentSchema, postCreateSchema } from "../../lib/validation/schemas";
 import { Comment, Follow, Like, Post, Product, User } from "../models";
 import { requireAuth } from "../middleware/auth";
+import { postUpload, publicUploadUrl } from "../middleware/upload";
 import { productPopulate } from "../services/catalog.service";
-import { AppError, stringId, success } from "../utils/http";
+import { AppError, slugify, stringId, success } from "../utils/http";
 import { mapPost, mapProduct, mapUser } from "../utils/mappers";
 
 export const socialRouter = Router();
@@ -12,6 +14,69 @@ const postPopulate = [
   { path: "creatorId" },
   { path: "productId", populate: productPopulate },
 ];
+
+function parsePostBody(body: Record<string, unknown>) {
+  let hashtags = body.hashtags;
+  if (typeof hashtags === "string") {
+    try {
+      hashtags = JSON.parse(hashtags || "[]");
+    } catch {
+      hashtags = null;
+    }
+  }
+  return { ...body, hashtags };
+}
+
+async function uniquePostSlug(caption: string) {
+  const base = slugify(caption).slice(0, 72) || "post";
+  if (!(await Post.exists({ slug: base }))) return base;
+  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+socialRouter.post("/posts", requireAuth, postUpload, async (req, res) => {
+  const parsed = postCreateSchema.safeParse(parsePostBody(req.body));
+  if (!parsed.success)
+    throw new AppError(
+      422,
+      "VALIDATION_ERROR",
+      "Write a caption before publishing.",
+    );
+
+  const product = parsed.data.productId
+    ? await Product.findOne({
+        _id: parsed.data.productId,
+        vendorId: req.authUser!.id,
+      })
+    : null;
+  if (parsed.data.productId && !product)
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "You can only link one of your own products.",
+    );
+
+  const files = (req.files ?? []) as Express.Multer.File[];
+  const post = await Post.create({
+    creatorId: req.authUser!.id,
+    caption: parsed.data.caption,
+    hashtags: parsed.data.hashtags.map((tag) =>
+      tag.replace(/^#/, "").toLowerCase(),
+    ),
+    productId: product?._id,
+    slug: await uniquePostSlug(parsed.data.caption),
+    status: "PUBLISHED",
+    media: files.map((file, index) => ({
+      url: publicUploadUrl("posts", file.filename),
+      type: file.mimetype.startsWith("video/") ? "video" : "image",
+      fileName: file.originalname,
+      order: index,
+      isPrimary: index === 0,
+    })),
+  });
+  await post.populate(postPopulate);
+  return success(req, res, mapPost(post), 201);
+});
+
 socialRouter.get("/posts", async (req, res) => {
   const posts = await Post.find({ status: "PUBLISHED" })
     .sort({ createdAt: -1 })

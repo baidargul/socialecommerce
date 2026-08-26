@@ -9,7 +9,7 @@ import { SheetHost } from "@/components/sheets/sheet-host";
 import { Avatar } from "@/components/ui/avatar";
 import { getSessionUser } from "@/lib/auth/session";
 import { fetchBackend } from "@/lib/backend-api";
-import type { DemoUser, FeedPost, Product } from "@/lib/types";
+import type { CategoryItem, DemoUser, FeedPost, Product } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -52,14 +52,25 @@ export default async function PublicProfilePage({
   const { username } = await params;
   const { tab } = await searchParams;
   const cookieStore = await cookies();
-  const [profileResponse, sessionUser] = await Promise.all([
+  const sessionUser = await getSessionUser();
+  const isOwner =
+    sessionUser?.username.toLowerCase() === username.toLowerCase();
+  const canCreateProducts = Boolean(
+    isOwner && sessionUser && ["ADMIN", "VENDOR"].includes(sessionUser.role),
+  );
+  const [profileResponse, categoriesResponse] = await Promise.all([
     fetchBackend<PublicProfileResponse>(
       `/api/v1/profiles/${encodeURIComponent(username)}`,
       {
         headers: { cookie: cookieStore.toString() },
       },
     ),
-    getSessionUser(),
+    canCreateProducts
+      ? fetchBackend<{ items: CategoryItem[]; nextCursor: null }>(
+          "/api/v1/dashboard/categories",
+          { headers: { cookie: cookieStore.toString() } },
+        )
+      : Promise.resolve(null),
   ]);
   const profile = profileResponse
     ? {
@@ -190,6 +201,9 @@ export default async function PublicProfilePage({
       <PublicProfileTabs
         posts={posts}
         products={products}
+        categories={categoriesResponse?.items ?? []}
+        isOwner={isOwner}
+        canCreateProducts={canCreateProducts}
         initialTab={tab === "products" ? "products" : "posts"}
       />
       <SheetHost />

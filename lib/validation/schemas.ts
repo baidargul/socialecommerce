@@ -2,7 +2,11 @@ import { z } from "zod";
 
 export const signupSchema = z.object({
   name: z.string().min(2).max(80),
-  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
+  username: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/),
   email: z.string().email(),
   password: z.string().min(8).max(100),
 });
@@ -14,7 +18,11 @@ export const loginSchema = z.object({
 
 export const accountSettingsSchema = z.object({
   name: z.string().min(2).max(80),
-  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
+  username: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/),
   email: z.string().email(),
   phone: z.string().min(7).max(30).optional().or(z.literal("")),
   bio: z.string().max(240).optional().or(z.literal("")),
@@ -52,20 +60,44 @@ export const addressSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-const shippingAddressSchema = addressSchema.omit({ label: true, isDefault: true });
-
-export const orderSchema = z.object({
-  paymentMethod: z.literal("COD"),
-  addressId: z.string().min(1).optional(),
-  shippingAddress: shippingAddressSchema.optional(),
-  saveAddress: z.boolean().optional(),
-}).refine((input) => Boolean(input.addressId || input.shippingAddress), {
-  message: "Choose a saved address or enter a shipping address.",
-  path: ["shippingAddress"],
+const shippingAddressSchema = addressSchema.omit({
+  label: true,
+  isDefault: true,
 });
 
+export const orderSchema = z
+  .object({
+    paymentMethod: z.literal("COD"),
+    addressId: z.string().min(1).optional(),
+    shippingAddress: shippingAddressSchema.optional(),
+    saveAddress: z.boolean().optional(),
+  })
+  .refine((input) => Boolean(input.addressId || input.shippingAddress), {
+    message: "Choose a saved address or enter a shipping address.",
+    path: ["shippingAddress"],
+  });
+
 export const orderStatusSchema = z.object({
-  status: z.enum(["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"]),
+  status: z.enum([
+    "PENDING",
+    "CONFIRMED",
+    "PROCESSING",
+    "SHIPPED",
+    "DELIVERED",
+    "CANCELLED",
+    "REFUNDED",
+  ]),
+});
+
+export const postCreateSchema = z.object({
+  caption: z.string().trim().min(1).max(2200),
+  hashtags: z.array(z.string().trim().min(1).max(40)).max(30).default([]),
+  productId: z
+    .string()
+    .trim()
+    .regex(/^[a-f\d]{24}$/i)
+    .optional()
+    .or(z.literal("")),
 });
 
 export const productCreateSchema = z.object({
@@ -84,7 +116,13 @@ export const productCreateSchema = z.object({
   category: z.string().min(2).max(80).optional().or(z.literal("")),
   price: z.coerce.number().positive(),
   originalPrice: z.coerce.number().positive().optional().or(z.literal("")),
-  discountPercent: z.coerce.number().int().min(0).max(95).optional().or(z.literal("")),
+  discountPercent: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(95)
+    .optional()
+    .or(z.literal("")),
   stockQuantity: z.coerce.number().int().min(0).max(999999).default(0),
   sku: z.string().max(80).optional(),
   tags: z.array(z.string().min(1).max(40)).max(20).default([]),

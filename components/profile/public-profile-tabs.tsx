@@ -1,30 +1,49 @@
 "use client";
 
 import { useState } from "react";
-import type { FeedPost, Product } from "@/lib/types";
+import { Plus } from "lucide-react";
+import type { CategoryItem, FeedPost, Product } from "@/lib/types";
 import { FeedPostCard } from "@/components/feed/feed-post-card";
 import { ProductCard } from "@/components/product/product-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PostCreateWizard } from "@/components/profile/post-create-wizard";
+import { ProductCreateWizard } from "@/components/profile/product-create-wizard";
 import { cn } from "@/lib/utils";
 
 type PublicProfileTabsProps = {
   posts: FeedPost[];
   products: Product[];
+  categories?: CategoryItem[];
+  isOwner?: boolean;
+  canCreateProducts?: boolean;
   initialTab?: "posts" | "products";
 };
 
 export function PublicProfileTabs({
   posts,
   products,
+  categories = [],
+  isOwner = false,
+  canCreateProducts = false,
   initialTab,
 }: PublicProfileTabsProps) {
+  const [profilePosts, setProfilePosts] = useState(posts);
+  const [profileProducts, setProfileProducts] = useState(products);
   const [activeTab, setActiveTab] = useState<"posts" | "products">(
     initialTab ?? (posts.length ? "posts" : "products"),
   );
+  const [wizard, setWizard] = useState<"post" | "product" | null>(null);
+
   const tabs = [
-    { key: "posts" as const, label: "Posts", count: posts.length },
-    { key: "products" as const, label: "Products", count: products.length },
+    { key: "posts" as const, label: "Posts", count: profilePosts.length },
+    {
+      key: "products" as const,
+      label: "Products",
+      count: profileProducts.length,
+    },
   ];
+  const canCreateActive =
+    isOwner && (activeTab === "posts" || canCreateProducts);
 
   return (
     <section className="border-t border-zinc-100">
@@ -46,9 +65,9 @@ export function PublicProfileTabs({
       </div>
 
       {activeTab === "posts" ? (
-        posts.length ? (
+        profilePosts.length ? (
           <div>
-            {posts.map((post) => (
+            {profilePosts.map((post) => (
               <FeedPostCard key={post.id} post={post} />
             ))}
           </div>
@@ -57,9 +76,9 @@ export function PublicProfileTabs({
             Posts from this profile will appear here.
           </EmptyState>
         )
-      ) : products.length ? (
+      ) : profileProducts.length ? (
         <div className="grid grid-cols-2 gap-3 px-5 py-5">
-          {products.map((product) => (
+          {profileProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -68,6 +87,41 @@ export function PublicProfileTabs({
           Products from this profile will appear here.
         </EmptyState>
       )}
+
+      {canCreateActive ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 mx-auto flex w-full max-w-[430px] justify-end px-5">
+          <button
+            type="button"
+            onClick={() =>
+              setWizard(activeTab === "posts" ? "post" : "product")
+            }
+            className="pointer-events-auto grid size-14 place-items-center rounded-full bg-[#d62976] text-white shadow-[0_10px_30px_rgba(214,41,118,0.4)] transition active:scale-95"
+            aria-label={
+              activeTab === "posts" ? "Add new post" : "Add new product"
+            }
+            title={activeTab === "posts" ? "Add new post" : "Add new product"}
+          >
+            <Plus className="size-6" />
+          </button>
+        </div>
+      ) : null}
+
+      {wizard === "post" ? (
+        <PostCreateWizard
+          products={profileProducts}
+          onClose={() => setWizard(null)}
+          onCreated={(post) => setProfilePosts((current) => [post, ...current])}
+        />
+      ) : null}
+      {wizard === "product" ? (
+        <ProductCreateWizard
+          categories={categories}
+          onClose={() => setWizard(null)}
+          onCreated={(product) =>
+            setProfileProducts((current) => [product, ...current])
+          }
+        />
+      ) : null}
     </section>
   );
 }

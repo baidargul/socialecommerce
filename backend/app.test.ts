@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- model registry cleanup is intentionally generic. */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import request from "supertest";
@@ -6,15 +9,20 @@ import request from "supertest";
 let mongo: MongoMemoryServer;
 let app: Awaited<ReturnType<(typeof import("./app"))["createApp"]>>;
 let models: typeof import("./models");
+let testUploadDir: string;
 
 beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
+  testUploadDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "socialecommerce-test-"),
+  );
   Object.assign(process.env, {
     MONGODB_URI: mongo.getUri("socialecommerce-test"),
     JWT_SECRET: "test-secret-that-is-at-least-thirty-two-characters",
     FRONTEND_URL: "http://localhost:3000",
     PUBLIC_API_URL: "http://localhost:5000",
     NODE_ENV: "test",
+    UPLOAD_DIR: testUploadDir,
   });
   const database = await import("./database/connection");
   models = await import("./models");
@@ -32,6 +40,8 @@ beforeEach(async () => {
 afterAll(async () => {
   await (await import("./database/connection")).disconnectDatabase();
   if (mongo) await mongo.stop();
+  if (testUploadDir.startsWith(os.tmpdir()))
+    fs.rmSync(testUploadDir, { recursive: true, force: true });
 });
 
 describe("backend API", () => {
@@ -94,6 +104,68 @@ describe("backend API", () => {
       .expect(200);
     expect(unliked.body.data.liked).toBe(false);
     expect(await models.Like.countDocuments()).toBe(0);
+  });
+  it("creates posts with optional media and protects linked products", async () => {
+    await request(app)
+      .post("/api/v1/posts")
+      .field("caption", "Not signed in")
+      .expect(401);
+
+    const owner = request.agent(app);
+    const signup = await owner
+      .post("/api/v1/auth/signup")
+      .send({
+        name: "Post Owner",
+        username: "post_owner",
+        email: "post-owner@example.com",
+        password: "password123",
+      })
+      .expect(200);
+    await owner.post("/api/v1/posts").field("caption", "").expect(422);
+
+    const captionOnly = await owner
+      .post("/api/v1/posts")
+      .field("caption", "A caption-only post")
+      .field("hashtags", JSON.stringify(["Launch", "#Social"]))
+      .expect(201);
+    expect(captionOnly.body.data.caption).toBe("A caption-only post");
+    expect(captionOnly.body.data.hashtags).toEqual(["launch", "social"]);
+
+    const withMedia = await owner
+      .post("/api/v1/posts")
+      .field("caption", "A post with media")
+      .attach("media", Buffer.from("image-data"), {
+        filename: "post.png",
+        contentType: "image/png",
+      })
+      .expect(201);
+    expect(withMedia.body.data.media).toHaveLength(1);
+    expect(withMedia.body.data.media[0].type).toBe("image");
+
+    const otherUser = await models.User.create({
+      name: "Other Vendor",
+      username: "other_vendor",
+      email: "other-vendor@example.com",
+      role: "VENDOR",
+    });
+    const foreignProduct = await models.Product.create({
+      vendorId: otherUser.id,
+      name: "Foreign Product",
+      slug: "foreign-product",
+      price: 20,
+      stockQuantity: 1,
+    });
+    await owner
+      .post("/api/v1/posts")
+      .field("caption", "Invalid product link")
+      .field("productId", foreignProduct.id)
+      .expect(403);
+
+    const profile = await request(app)
+      .get(`/api/v1/profiles/${signup.body.data.user.username}`)
+      .expect(200);
+    expect(profile.body.data.stats.posts).toBe(2);
+    expect(profile.body.data.posts).toHaveLength(2);
   });
   it("checks out without MongoDB transactions and prevents overselling", async () => {
     const agent = request.agent(app);
