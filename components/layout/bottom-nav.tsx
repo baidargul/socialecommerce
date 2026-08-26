@@ -8,14 +8,16 @@ import { useCartStore } from "@/store/use-cart-store";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/shop", label: "Shop", icon: Search },
+  { href: "/search", label: "Search", icon: Search },
   { href: "/cart", label: "Cart", icon: ShoppingBag },
   { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
+  const cartCount = useCartStore((state) =>
+    state.items.reduce((sum, item) => sum + item.quantity, 0),
+  );
   const cartBadge = cartCount > 99 ? "99+" : String(cartCount);
 
   return (
@@ -23,7 +25,10 @@ export function BottomNav() {
       <div className="grid grid-cols-4">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}

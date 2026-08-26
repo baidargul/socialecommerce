@@ -238,20 +238,38 @@ catalogRouter.delete("/products/:id", requireManager, async (req, res) => {
 });
 catalogRouter.get("/search", async (req, res) => {
   const q = String(req.query.q ?? "").trim();
-  const pattern = { $regex: q, $options: "i" };
-  const [products, posts, creators] = await Promise.all([
-    Product.find({ $or: [{ name: pattern }, { tags: pattern }] }).populate(
-      productPopulate,
-    ),
-    Post.find({ $or: [{ caption: pattern }, { hashtags: pattern }] }).populate([
-      { path: "creatorId" },
-      { path: "productId", populate: productPopulate },
-    ]),
-    User.find({ username: pattern }).limit(10),
+  if (!q) return success(req, res, { products: [], posts: [], users: [] });
+
+  const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = { $regex: escapedQuery, $options: "i" };
+  const [products, posts, users] = await Promise.all([
+    Product.find({ $or: [{ name: pattern }, { tags: pattern }] })
+      .sort({ createdAt: -1 })
+      .limit(24)
+      .populate(productPopulate),
+    Post.find({
+      status: "PUBLISHED",
+      $or: [{ caption: pattern }, { hashtags: pattern }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(24)
+      .populate([
+        { path: "creatorId" },
+        { path: "productId", populate: productPopulate },
+      ]),
+    User.find({
+      $or: [{ name: pattern }, { username: pattern }, { bio: pattern }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(20),
   ]);
   return success(req, res, {
     products: products.map(mapProduct),
     posts: posts.map(mapPost),
-    creators: creators.map(mapUser),
+    users: users.map((user) => {
+      const { email: _email, ...publicUser } = mapUser(user);
+      void _email;
+      return publicUser;
+    }),
   });
 });

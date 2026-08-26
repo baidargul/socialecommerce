@@ -167,6 +167,55 @@ describe("backend API", () => {
     expect(profile.body.data.stats.posts).toBe(2);
     expect(profile.body.data.posts).toHaveLength(2);
   });
+  it("searches published posts, products, and users without exposing email", async () => {
+    const user = await models.User.create({
+      name: "Clay Artist",
+      username: "clay_artist",
+      email: "clay@example.com",
+      role: "CREATOR",
+      bio: "Handmade ceramic pieces",
+    });
+    const product = await models.Product.create({
+      vendorId: user.id,
+      name: "Ceramic Bowl",
+      slug: "ceramic-bowl",
+      tags: ["clay"],
+      price: 25,
+      stockQuantity: 2,
+      status: "ACTIVE",
+    });
+    await models.Post.create([
+      {
+        creatorId: user.id,
+        caption: "Fresh clay collection",
+        slug: "fresh-clay",
+        productId: product.id,
+        status: "PUBLISHED",
+      },
+      {
+        creatorId: user.id,
+        caption: "Private clay draft",
+        slug: "private-clay",
+        status: "DRAFT",
+      },
+    ]);
+
+    const response = await request(app)
+      .get("/api/v1/search")
+      .query({ q: "clay" })
+      .expect(200);
+    expect(response.body.data.products).toHaveLength(1);
+    expect(response.body.data.posts).toHaveLength(1);
+    expect(response.body.data.posts[0].slug).toBe("fresh-clay");
+    expect(response.body.data.users).toHaveLength(1);
+    expect(response.body.data.users[0].email).toBeUndefined();
+
+    const empty = await request(app)
+      .get("/api/v1/search")
+      .query({ q: "" })
+      .expect(200);
+    expect(empty.body.data).toEqual({ products: [], posts: [], users: [] });
+  });
   it("checks out without MongoDB transactions and prevents overselling", async () => {
     const agent = request.agent(app);
     const signup = await agent.post("/api/v1/auth/signup").send({
