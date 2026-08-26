@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"npm run dev:backend\" \"node scripts/wait-for-backend.mjs && npm run dev:frontend\"",
+    "dev:frontend": "next dev",
     "dev:backend": "tsx backend/server.ts",
     "start:backend": "tsx backend/server.ts",
-    "dev:all": "concurrently \"npm run dev:backend\" \"node scripts/wait-for-backend.mjs && npm run dev\"",
+    "dev:all": "npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

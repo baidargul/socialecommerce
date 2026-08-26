@@ -8,10 +8,10 @@ Next.js 16 frontend with a structured Express 5, Mongoose and standalone MongoDB
 cp .env.example .env
 npm install
 npm run db:seed -- --reset
-npm run dev:all
+npm run dev
 ```
 
-Frontend runs at `http://localhost:3000`; the backend defaults to `http://localhost:5000`. The backend fails fast when MongoDB or required production configuration is unavailable. Prisma and MongoDB transactions are not used.
+`npm run dev` starts both services. Open the frontend at `http://localhost:3000`; port `5000` is the API backend, so its browser-facing health check is `http://localhost:5000/health`. The legacy `npm run dev:all` command remains available. The backend fails fast when MongoDB or required production configuration is unavailable. Prisma and MongoDB transactions are not used.
 
 ## Environment
 
