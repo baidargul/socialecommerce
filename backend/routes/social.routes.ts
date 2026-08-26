@@ -155,6 +155,12 @@ socialRouter.get("/profiles/:username", async (req, res) => {
     ]);
   return success(req, res, {
     user: mapUser(user),
+    stats: {
+      posts: posts.length,
+      products: products.length,
+      followers: followerCount,
+      following: followingCount,
+    },
     followerCount,
     followingCount,
     isFollowing: Boolean(followed),

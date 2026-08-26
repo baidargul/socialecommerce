@@ -51,6 +51,15 @@ describe("backend API", () => {
       .send(payload)
       .expect(200);
     expect(created.body.data.user.role).toBe("ADMIN");
+    const profile = await request(app)
+      .get("/api/v1/profiles/admin_user")
+      .expect(200);
+    expect(profile.body.data.stats).toEqual({
+      posts: 0,
+      products: 0,
+      followers: 0,
+      following: 0,
+    });
     await request(app).post("/api/v1/auth/signup").send(payload).expect(409);
   });
   it("persists comments and toggles a unique like", async () => {
@@ -88,14 +97,12 @@ describe("backend API", () => {
   });
   it("checks out without MongoDB transactions and prevents overselling", async () => {
     const agent = request.agent(app);
-    const signup = await agent
-      .post("/api/v1/auth/signup")
-      .send({
-        name: "Admin User",
-        username: "admin_user",
-        email: "admin@example.com",
-        password: "password123",
-      });
+    const signup = await agent.post("/api/v1/auth/signup").send({
+      name: "Admin User",
+      username: "admin_user",
+      email: "admin@example.com",
+      password: "password123",
+    });
     const userId = signup.body.data.user.id;
     const product = await models.Product.create({
       vendorId: userId,
